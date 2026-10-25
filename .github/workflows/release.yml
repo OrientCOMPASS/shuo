@@ -171,10 +171,11 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           TAG="$GITHUB_REF_NAME"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" out/* --clobber
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/* --clobber --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$TAG" out/* \
+              --repo "$GITHUB_REPOSITORY" \
               --title "说 · Shuo ${VERSION}" \
               --notes "Windows: NSIS 安装包；Linux: deb + AppImage。模型不随包分发，首次使用请把 Qwen3-ASR-0.6B-ONNX-CPU 与 Qwen3.5-2B-ONNX-OPT 放到仓库根目录或 ~/.shuo/models（详见 README）。"
           fi

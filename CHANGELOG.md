@@ -1,5 +1,18 @@
 # Changelog
 
+## 未发布（main 开发中）
+
+### 新增 — 单模型直出（微调 Qwen3-ASR，识别 + 提示词优化一步完成）
+- **`finetune/` 微调产线**（方法论移植自 Qwen3-subtitle-assistant 的 S2TT 实验线，全链路已在其 CI 实测）：
+  - `prepare_data.py`：FLEURS（默认 zh_cn）/自备 wav → 多任务 JSONL（prompt 进 chat 模板 system 段）；优化后端 none/stub/api/table；静音样本混入（保「静音→空输出」行为）
+  - `sft_lora.py`：官方数据管线 + peft LoRA + CPU 兜底；`eval_unified.py`：任务生效/未遗忘/整条泄漏/静音双模式四项评测
+  - `inspect_onnx_lora.py` + `patch_onnx_lora.py`：Gate 1/2——LoRA ΔW 按值匹配写回 Daumee int8 ONNX 包（适配 `onnx_models/` 子目录、外置 `.data`、decoder_init/step 共享权重双写），产出 `*-unified/` 目录 + `unified.json` 标记
+  - `verify_unified_onnx.py`：Gate 3——onnxruntime 上与 Rust 管线同构的行为复测（支持 context）
+  - `prompts.py` + `check_prompt_sync.py`：任务提示词唯一事实源，与 Rust 端逐字对表（CI 强制）
+- **运行时（ort 保持不变）**：`asr.rs` 提示词构造重构为纯函数 `prompt_ids()`，system 段支持 context；`config.json` 新字段 `single_model_{enabled,preset,prompt}`（旧配置兼容）；`models.rs` 优先解析统一包；`state.rs` 单模型路径跳过 LLM 段
+- **前端（Tauri UI）**：设置抽屉新增「单模型直出」区（开关/任务预设/自定义提示词/包状态提示），顶栏「直出」chip，结果卡「单模型直出」徽标
+- **CI**：新增 `ci.yml`（push 必跑：rust ubuntu+windows 构建单测、finetune 脚本纯逻辑校验、提示词对表、UI 语法）与 `finetune.yml`（手动：cpu-smoke / real-mini / gpu-train / onnx-inspect / onnx-patch / ort-e2e）
+
 ## 26.10.25 — 2026-10-25
 
 > 版本号自本版起改为日期 `YY.MM.DD`，tag 为 `v26.10.25`；同日多次发版自动加 `-2`、`-3`。

@@ -1,5 +1,18 @@
 Qwen3-ASR-0.6B-ONNX-CPU
+Qwen3-ASR-0.6B-ONNX-CPU-unified
+Qwen3-ASR-1.7B-GGUF
+Qwen3-ASR-1.7B-GGUF-unified
 Qwen3.5-2B-ONNX-OPT
+models/
+
+# finetune 本地产物（数据/音频/适配器/报告；对照表 table_zh.tsv 需要提交）
+data/
+out/
+merged/
+*.gguf
+*.safetensors
+mt_cache.jsonl
+opt_cache.jsonl
 
 **/__pycache__/
 *.pyc

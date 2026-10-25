@@ -4,6 +4,21 @@
 
 On-device speech recognition GUI powered by Qwen3-ASR-0.6B ONNX CPU pipeline with Qwen3.5-2B ONNX text post-processing. No GPU, no PyTorch, no cloud.
 
+## 单模型直出（微调统一模型，新）
+
+参考 [Qwen3-subtitle-assistant](https://github.com/OrientCOMPASS/Qwen3-subtitle-assistant) 的
+S2TT 微调路线，本仓库新增 `finetune/` 产线：把 Qwen3-ASR（AuT 音频编码器来自
+Qwen3-Omni）用 LoRA 微调成**一个模型完成「语音识别 + 按提示词优化文本」**——
+用户设置的提示词进 chat 模板 system 段（context 通道），模型直出优化后的文本，
+**跳过 LLM 后处理段**（双模型工作流保留，可开关切换）：
+
+* 任务预设：逐字转写 / 中文书面化 / 英文书面化 / 直出中文 / 直出英文 / 自定义提示词；
+* 基座模型不执行 prompt 指令（官方防指令注入设计），**必须配合微调统一包**
+  （`Qwen3-ASR-0.6B-ONNX-CPU-unified/`，带 `unified.json` 标记）才能兑现任务开关；
+  基座包上开启该模式不报错，提示词退化为识别偏置；
+* 统一包产线全在 CI（LoRA 训练 → int8 ONNX 权重补丁 → onnxruntime 行为复测），
+  方法与判定标准见 [`finetune/README.md`](./finetune/README.md)。
+
 ## 两种实现 / Two implementations
 
 | 实现 | 代码 | 说明 |
@@ -36,6 +51,8 @@ powershell -ExecutionPolicy Bypass -File src-tauri\build.ps1
 - **全局热键**：两个独立热键、各自带开关——
   - 主热键（默认 `F2`）→ 识别后用 **Ctrl+V** 上屏，适合图形界面；
   - 终端热键（默认 `F3`）→ 识别后用 **Ctrl+Shift+V** 上屏，适合终端 / TUI。
+- **单模型直出**（设置 → 单模型直出）：微调统一包按 system 段提示词一步直出优化文本
+  （识别 + 整理），开启后跳过 LLM 段；任务预设与自定义提示词见 `finetune/prompts.py`。
 - **热键实现（Linux）**：优先走 `xdg-desktop-portal` 的 **GlobalShortcuts**（GNOME/KDE Wayland 官方通道，首次需在系统对话框里允许一次）；portal 不可用或要绑鼠标侧键时用 **evdev**（`/dev/input/event*`，需要 input 组权限或 `70-shuo-hotkey.rules`，deb 已自带）。
 - **自动输入（Linux）**：剪贴板 + 粘贴快捷键，快捷键由触发录音的热键决定（Ctrl+V / Ctrl+Shift+V）。**首选 uinput 虚拟键盘**（不需要任何授权框，deb 的 udev 规则会放开 `/dev/uinput`）；uinput 不可用时退回 RemoteDesktop 门户（持久化 restore token，被撤回会自动重新申请）。
 - **状态胶囊（Linux）**：屏幕底部（任务栏上方）显示「录音中 + 波形 / 识别中 + 转圈」，XWayland 小窗置顶、不抢焦点、鼠标穿透；不需要 GNOME 扩展，也不需要注销重登录。
@@ -62,6 +79,7 @@ powershell -ExecutionPolicy Bypass -File src-tauri\build.ps1
 │   ├── linux/                       #   udev 规则（evdev 热键后备）
 │   ├── build.ps1                    #   Windows NSIS 打包
 │   └── tauri.conf.json              #   deb / AppImage / NSIS 配置
+├── finetune/                        # 单模型直出微调产线（数据/训练/评测/ONNX 补丁，见其 README）
 ├── legacy/2026-10-25-python/        # Python / PySide6 原版（归档，仅参考）
 ├── i18n/                            # 翻译生成/同步工具（共享）
 ├── locales/                         # 27 种语言源文件（共享，构建时同步到 ui/locales）

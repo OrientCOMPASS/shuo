@@ -26,7 +26,7 @@ on:
         description: "运行模式"
         type: choice
         default: "cpu-smoke"
-        options: [cpu-smoke, real-mini, gpu-train, onnx-inspect, onnx-patch, ort-e2e]
+        options: [cpu-smoke, dump-table, real-mini, gpu-train, onnx-inspect, onnx-patch, ort-e2e]
       model:
         description: "基座模型"
         type: choice
@@ -181,6 +181,43 @@ jobs:
             data/eval.jsonl
             data/transcripts.txt
           if-no-files-found: warn
+          retention-days: 30
+
+  # --------------------------------------------------------------- dump-table
+  # 导出 CI 会抽到的那批 FLEURS 转写（流式顺序确定，--limit 相同则样本相同），
+  # 供离线整理成 finetune/table_zh.tsv 对照表（real-mini 的免密钥真实数据路线，
+  # qsa 同款流程）。轻量 job：不装 torch，只装 datasets+soundfile。
+  dump-table:
+    name: 导出 FLEURS 转写（供离线整理对照表）
+    if: ${{ inputs.mode == 'dump-table' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: 安装轻量依赖（无 torch）
+        run: pip install --quiet datasets soundfile numpy
+
+      - name: 导出转写（与 real-mini 同参数：limit 100 + eval 20，≤15s）
+        run: |
+          python finetune/prepare_data.py \
+            --source fleurs --fleurs-lang cmn_hans_cn --limit 100 --eval-limit 20 \
+            --max-audio-secs 15 --optimizer none --tasks "" \
+            --audio-dir data/audio --out data/dump_train.jsonl --eval-out data/dump_eval.jsonl \
+            --dump-transcripts data/transcripts.txt
+          wc -l data/transcripts.txt
+          head -5 data/transcripts.txt
+
+      - name: 上传转写清单
+        uses: actions/upload-artifact@v7
+        with:
+          name: unified-transcripts
+          path: data/transcripts.txt
+          if-no-files-found: error
           retention-days: 30
 
   # ---------------------------------------------------------------- real-mini

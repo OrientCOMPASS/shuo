@@ -210,6 +210,14 @@ float32 全程 CPU：**240 步 / 37.6 分钟 / final loss 0.347**（整轮 job �
 （「拍鸟群」→「拍鸟、群」）。放量（gpu-train，≥2000 句 + api 后端）可提精度，
 判定闸与产线不变。
 
+**1.7B 基座同表同配方也已验证通过**（run 40237414373，由本工作流 real-mini 模式
+派发）：240 步 / 48.3 分钟 / final loss 0.236，四项判定
+全过且全面优于 0.6B——verbatim 相似度 0.906（泄漏 0/20）、polish_zh 0.957（口癖 0）、
+translate_en 拉丁 **95.5%**、静音双模式空，且无「拍鸟、群」级断词漂移。1.7B 是
+GGUF 路线（`feat/gguf-1.7b` 分支）的主模型：其 LoRA 合并 → GGUF 转换 → Q4_K_M
+量化 → llama-server 直出英文的全产线实测记录在该分支的 finetune/README.md 与
+CHANGELOG（gguf-e2 run 40242476360 / gguf-e2e run 40235119900）。
+
 ### Gate 1/2/3 ONNX 补丁链（Daumee int8 包，产品运行时形态）
 
 | 闸 | run | 结果 |

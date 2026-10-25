@@ -1,0 +1,11 @@
+# 说 · Shuo — 全局热键（evdev 后备通道）所需的输入设备读权限
+#
+# GNOME/KDE 下优先走 xdg-desktop-portal 的 GlobalShortcuts，不需要这个文件；
+# 该规则只用于 portal 不可用、或热键绑定鼠标侧键（portal 不支持鼠标）的情况。
+#
+# 安装：
+#   sudo cp 70-shuo-hotkey.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+# 之后重新插拔键盘/鼠标（或重新登录）即可。
+
+KERNEL=="event*", SUBSYSTEM=="input", TAG+="uaccess"

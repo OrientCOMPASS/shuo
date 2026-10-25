@@ -1,0 +1,72 @@
+{
+  "$schema": "https://schema.tauri.app/config/3.0.0",
+  "productName": "Shuo",
+  "version": "0.2.0",
+  "identifier": "com.shuo.desktop",
+  "build": {
+    "frontendDist": "ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "说 · Shuo",
+        "width": 720,
+        "height": 520,
+        "minWidth": 560,
+        "minHeight": 360,
+        "center": true,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost tauri://localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "deb",
+      "appimage"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "category": "Utility",
+    "shortDescription": "本地语音识别",
+    "longDescription": "说 · Shuo — 基于 Qwen3-ASR-0.6B ONNX CPU 推理 + Qwen3.5-2B ONNX 文本优化的本地语音识别工具。无需 GPU，无需云端。",
+    "resources": {
+      "resources/denoise.onnx": "denoise.onnx"
+    },
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/lib/udev/rules.d/70-shuo-hotkey.rules": "linux/70-shuo-hotkey.rules",
+          "/usr/share/applications/com.shuo.desktop.desktop": "linux/com.shuo.desktop.desktop"
+        },
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libjavascriptcoregtk-4.1-0",
+          "libgtk-3-0",
+          "libgdk-pixbuf-2.0-0",
+          "libcairo2",
+          "libsoup-3.0-0",
+          "libglib2.0-0",
+          "libdbus-1-3",
+          "libasound2t64 | libasound2",
+          "libgcc-s1",
+          "libc6"
+        ],
+        "recommends": [
+          "wl-clipboard | xclip",
+          "xdotool"
+        ]
+      }
+    }
+  }
+}

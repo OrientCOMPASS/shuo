@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>说 · Shuo</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 图标（内联 SVG，避免外部依赖） -->
+  <svg class="svg-defs" aria-hidden="true">
+    <symbol id="i-mic" viewBox="0 0 24 24">
+      <path d="M12 15a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v5a4 4 0 0 0 4 4Z"/>
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"/>
+    </symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24">
+      <rect x="9" y="9" width="11" height="11" rx="2"/>
+      <path d="M5 15V5a2 2 0 0 1 2-2h8"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12.5 5 5L20 6.5"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="3.2"/>
+      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"/>
+    </symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24">
+      <path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14"/>
+    </symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24">
+      <path d="M20 11a8 8 0 1 0-2.3 6.7M20 5v6h-6"/>
+    </symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24">
+      <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>
+    </symbol>
+    <symbol id="i-history" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+    </symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24">
+      <rect x="2.5" y="6" width="19" height="12" rx="2"/>
+      <path d="M7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h10"/>
+    </symbol>
+    <symbol id="i-info" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>
+    </symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></symbol>
+  </svg>
+
+  <div id="app">
+    <header class="topbar">
+      <div class="brand" id="brand">
+        <span class="logo">说</span>
+        <div class="brand-text">
+          <strong>Shuo</strong>
+          <span class="ver" id="ver">v0.2.0</span>
+        </div>
+      </div>
+
+      <div class="chips" id="chips">
+        <span class="chip" id="chip-asr" title="ASR"><i class="dot"></i><span>ASR</span></span>
+        <span class="chip" id="chip-llm" title="LLM"><i class="dot"></i><span>LLM</span></span>
+        <span class="chip" id="chip-denoise"><i class="dot"></i><span data-i18n="settings.denoise">降噪</span></span>
+      </div>
+
+      <div class="top-actions">
+        <span class="hotkey-badge" id="hotkey-badge" hidden></span>
+        <button class="icon-btn" id="btn-settings" data-i18n-title="btn.settings" title="设置">
+          <svg><use href="#i-gear"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="banner" id="banner" hidden>
+      <span id="banner-text"></span>
+      <button class="link" id="banner-log">日志</button>
+      <button class="icon-btn sm" id="banner-close" aria-label="关闭"><svg><use href="#i-x"/></svg></button>
+    </div>
+
+    <main class="main">
+      <section class="composer">
+        <div class="rec-strip">
+          <button id="record" class="record-btn" disabled aria-label="按住说话">
+            <svg class="mic"><use href="#i-mic"/></svg>
+            <span class="rec-dot"></span>
+          </button>
+          <div class="rec-info">
+            <div class="rec-line">
+              <span class="rec-timer" id="timer">0.0s</span>
+              <span class="rec-hint" id="record-hint">按住说话，松开结束</span>
+            </div>
+            <div class="rec-line dim">
+              <span id="hotkey-hint"></span>
+              <span class="sep">·</span>
+              <span id="engine-line"></span>
+            </div>
+          </div>
+          <span class="meta" id="meta"></span>
+        </div>
+
+        <div class="cards">
+          <div class="card" id="card-asr">
+            <header class="card-head">
+              <h3 data-i18n="result.asr">识别原文</h3>
+              <span class="badge" id="asr-lang"></span>
+              <button class="icon-btn sm" data-copy="asr" data-i18n-title="btn.copy" title="复制">
+                <svg><use href="#i-copy"/></svg>
+              </button>
+            </header>
+            <p class="text muted" id="asr-text">—</p>
+          </div>
+
+          <div class="card accent" id="card-final">
+            <header class="card-head">
+              <h3 data-i18n="result.final">整理结果</h3>
+              <span class="badge" id="meta-llm"></span>
+              <button class="icon-btn sm" id="btn-copy" data-i18n-title="btn.copy" title="复制" disabled>
+                <svg><use href="#i-copy"/></svg>
+              </button>
+            </header>
+            <p class="text" id="final-text">—</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="history-panel">
+        <header class="section-head">
+          <h3><svg class="sm"><use href="#i-history"/></svg><span data-i18n="history.title">历史记录</span></h3>
+          <div class="section-tools">
+            <span class="muted small" id="history-count"></span>
+            <button class="btn ghost sm" id="btn-clear-history" data-i18n="btn.clear_history">清空历史</button>
+          </div>
+        </header>
+        <ul class="history" id="history"></ul>
+        <div class="empty" id="history-empty" data-i18n="history.empty">还没有记录</div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 设置抽屉 -->
+  <div class="overlay" id="overlay" hidden></div>
+  <aside class="drawer" id="drawer" hidden aria-hidden="true">
+    <header class="drawer-head">
+      <h2 data-i18n="btn.settings">设置</h2>
+      <button class="icon-btn" id="btn-close-settings" aria-label="关闭"><svg><use href="#i-x"/></svg></button>
+    </header>
+    <div class="drawer-body">
+      <section class="group">
+        <h3 class="group-title"><svg class="sm"><use href="#i-keyboard"/></svg><span data-i18n="settings.hotkey">快捷键设置</span></h3>
+        <div class="row">
+          <label class="switch"><input type="checkbox" id="chk-hotkey" /><i></i></label>
+          <label data-i18n="settings.hotkey_key">全局热键（Ctrl+V 上屏）</label>
+          <div class="row-controls">
+            <kbd id="hotkey-value">F2</kbd>
+            <button class="btn sm" id="btn-capture" data-which="main" data-i18n="btn.record_key">录制</button>
+          </div>
+        </div>
+        <div class="row">
+          <label class="switch"><input type="checkbox" id="chk-hotkey-terminal" /><i></i></label>
+          <label data-i18n="settings.hotkey_terminal_key">终端热键（Ctrl+Shift+V 上屏）</label>
+          <div class="row-controls">
+            <kbd id="hotkey-value-terminal">F3</kbd>
+            <button class="btn sm" id="btn-capture-terminal" data-which="terminal" data-i18n="btn.record_key">录制</button>
+          </div>
+        </div>
+        <p class="hint" id="hotkey-tip" data-i18n="settings.hotkey_tip">按住说话：按下开始，松开结束。两个热键互相独立，可分别开关。</p>
+
+        <div class="row">
+          <label data-i18n="settings.mic">麦克风</label>
+          <div class="row-controls">
+            <select id="sel-mic"></select>
+            <button class="icon-btn sm" id="btn-refresh-mic" data-i18n-title="btn.refresh" title="刷新"><svg><use href="#i-refresh"/></svg></button>
+          </div>
+        </div>
+
+        <div class="row">
+          <label data-i18n="settings.asr_lang_label">识别语言</label>
+          <select id="sel-asr-lang"></select>
+        </div>
+
+        <div class="row">
+          <label data-i18n="settings.denoise">音频降噪</label>
+          <label class="switch"><input type="checkbox" id="chk-denoise" /><i></i></label>
+        </div>
+        <div class="row">
+          <label data-i18n="settings.auto_type">自动输入</label>
+          <label class="switch"><input type="checkbox" id="chk-auto-type" /><i></i></label>
+        </div>
+        <div class="row">
+          <label data-i18n="settings.history">保存历史</label>
+          <label class="switch"><input type="checkbox" id="chk-history" /><i></i></label>
+        </div>
+        <div class="row" id="row-remove-punc">
+          <label data-i18n="settings.remove_punc">去标点（替换为空格）</label>
+          <label class="switch"><input type="checkbox" id="chk-remove-punc" /><i></i></label>
+        </div>
+      </section>
+
+      <section class="group">
+        <h3 class="group-title"><span data-i18n="settings.llm">LLM 后处理</span></h3>
+        <div class="row">
+          <label data-i18n="settings.llm_enable">启用 LLM</label>
+          <label class="switch"><input type="checkbox" id="chk-llm" /><i></i></label>
+        </div>
+        <div class="row">
+          <label data-i18n="settings.llm_preset">提示词预设</label>
+          <select id="sel-preset"></select>
+        </div>
+        <div class="row">
+          <label data-i18n="settings.llm_saved">我的提示词</label>
+          <div class="row-controls">
+            <select id="sel-custom"></select>
+            <button class="btn sm" id="btn-apply-custom" data-i18n="btn.apply">应用</button>
+          </div>
+        </div>
+        <textarea id="llm-prompt" rows="7" spellcheck="false"></textarea>
+        <div class="row-controls end">
+          <input class="input sm" id="custom-name" data-i18n-placeholder="settings.prompt_name" placeholder="提示词名称" />
+          <button class="btn sm" id="btn-save-custom" data-i18n="btn.save_as">另存为</button>
+        </div>
+        <p class="hint" data-i18n="settings.llm_hint">LLM 会把口语转成书面文本（补标点、去口癖）。关闭时直接输出 ASR 原文。</p>
+      </section>
+
+      <section class="group">
+        <h3 class="group-title"><span data-i18n="settings.engine">模型与引擎</span></h3>
+        <div class="kv"><span>ASR</span><code id="dir-asr">—</code></div>
+        <div class="kv"><span>LLM</span><code id="dir-llm">—</code></div>
+        <div class="row-controls end">
+          <button class="btn sm" id="btn-reload" data-i18n="btn.reload">重新加载</button>
+          <button class="btn sm" id="btn-open-dir" data-i18n="btn.open_config">打开配置目录</button>
+          <button class="btn sm" id="btn-open-log" data-i18n="btn.open_log">打开日志</button>
+        </div>
+        <p class="hint" id="model-hint"></p>
+      </section>
+
+      <section class="group">
+        <h3 class="group-title"><svg class="sm"><use href="#i-info"/></svg><span data-i18n="settings.interface">界面</span></h3>
+        <div class="row">
+          <label data-i18n="settings.ui_lang">界面语言</label>
+          <select id="sel-ui-lang"></select>
+        </div>
+        <p class="hint" id="about-line"></p>
+      </section>
+    </div>
+  </aside>
+
+  <div class="loading-overlay" id="loading" hidden>
+    <div class="spinner"></div>
+    <div id="loading-text" data-i18n="loading.model">模型加载中…</div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

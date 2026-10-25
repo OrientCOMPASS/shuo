@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Shuo
+Comment=Local speech recognition
+Exec=/usr/bin/shuo
+Icon=Shuo
+Terminal=false
+NoDisplay=true
+StartupWMClass=shuo
+Categories=Utility;

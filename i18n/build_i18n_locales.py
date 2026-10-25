@@ -5,8 +5,9 @@ Build i18n locale files from master data, extract keys from source.
 Usage:
     python -m i18n.build_i18n_locales generate   # regenerate all 27 locale JSON files
     python -m i18n.build_i18n_locales extract    # scan .py for i18n.tr() keys, diff locale files
+    python -m i18n.build_i18n_locales sync-ui    # copy locales into src-tauri/ui/locales + index.json
 """
-import json, os, re, sys
+import json, os, re, shutil, sys
 from pathlib import Path
 
 PROJECT = Path(__file__).resolve().parent.parent
@@ -863,6 +864,31 @@ def cmd_extract():
 
 
 
+
+UI_LOCALE_DIR = PROJECT / "src-tauri" / "ui" / "locales"
+
+
+def cmd_sync_ui():
+    """把根目录 locales/ 复制给 Tauri 前端，并生成语言清单（code → 该语言自称）。"""
+    UI_LOCALE_DIR.mkdir(parents=True, exist_ok=True)
+    index = []
+    for lang in LANGS:
+        src = LOCALE_DIR / f"{lang}.json"
+        if not src.exists():
+            continue
+        shutil.copyfile(src, UI_LOCALE_DIR / f"{lang}.json")
+        try:
+            data = json.loads(src.read_text(encoding="utf-8"))
+        except Exception:
+            data = {}
+        index.append({"code": lang, "name": data.get("lang.name", lang)})
+    index.sort(key=lambda x: x["name"])
+    (UI_LOCALE_DIR / "index.json").write_text(
+        json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    print(f"Synced {len(index)} locales → {UI_LOCALE_DIR}")
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(__doc__)
@@ -872,6 +898,8 @@ if __name__ == "__main__":
         cmd_generate()
     elif cmd == "extract":
         cmd_extract()
+    elif cmd == "sync-ui":
+        cmd_sync_ui()
     else:
         print(f"Unknown command: {cmd}")
         print(__doc__)

@@ -2,6 +2,12 @@
 
 ## 未发布（feat/gguf-1.7b：推理框架迁移 + 1.7B）
 
+### 实测记录（2026-10-25，全链路 CI 跑通）
+- **real-mini 1.7B**（run 40237414373）：120 句对照表 + LoRA r=32，240 步 / 48.3 min / loss 0.236，四项判定全过——verbatim 相似度 0.906（泄漏 0/20）、polish_zh 0.957（口癖 0）、translate_en 拉丁 **95.5%**、静音双模式空；全面优于 0.6B（loss 0.347 / latin 92.5%），无「拍鸟、群」级断词漂移
+- **gguf-e2**（run 40242476360）：1.7B 真实适配器 → merge(2.04B) → 官方转换器 → **Q4_K_M 1.03GiB + mmproj q8_0 0.33GiB = 1.36GiB**；llama-server 探针（训练未见过音频）：带 context 直出英文 "Open hours: 9:00 am to 5:00 pm."、不带 context 仍中文转写（任务开关成立）、静音双模式 `language None`+空（穿越量化全链）
+- **gguf-e2e**（run 40235119900）：Rust `GgufAsr`（llama-cpp-sys-2 静态链接）加载官方 1.7B Q8_0，参考 wav 转写逐字正确（4 vCPU 2.5s），context 冒烟过
+- **CI 双平台**：llama.cpp 源码静态编译 ubuntu + windows 两腿全绿（bindgen 需 libclang，CI 已自动化）
+
 ### 变更 — ASR 推理框架迁移到 llama.cpp/GGUF（换用 Qwen3-ASR-1.7B）
 - **新后端 `src/gguf_asr.rs`**：llama-cpp-sys-2（=0.1.157，openmp+mtmd）**源码静态链接**进可执行文件（无 DLL/so 伴生），加载官方 `ggml-org/Qwen3-ASR-1.7B-GGUF`（LM+mmproj）；mtmd 音频 tokenize/prefill + 贪心解码 + `language X<asr_text>` 解析；与 ONNX 路径同接口（AsrResult），长音频复用静音切分；原生 C 日志桥接（默认只放行 ERROR，`SHUO_LLAMA_LOG=1` 全量）
 - **双后端调度**：`config.json` 新增 `asr_backend`（auto/onnx/gguf，默认 auto=有 GGUF 模型优先 GGUF）；`models.rs` GGUF 目录探测（`Qwen3-ASR-1.7B-GGUF[-unified]/`，mmproj 前缀约定）；`state.rs` `AsrEngine` 枚举统一调度，加载失败自动回退另一后端；`Status.asr_backend` 上报，UI chip/引擎行显示 ONNX/GGUF

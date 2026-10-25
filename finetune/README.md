@@ -237,3 +237,55 @@ float32 全程 CPU：**240 步 / 37.6 分钟 / final loss 0.347**（整轮 job �
   merge 前 fail-fast 校验 adapter_config 的 base_model；
 * 2 步 stub 适配器的静音行为无质量含义（实测 no-context 幻觉《小豬的夢》），
   冒烟场次（expect=any）静音非空仅记录警告，硬判定留给真实适配器场次。
+
+## GGUF 路线实测记录（feat/gguf-1.7b，2026-10-25，全链路首次跑通）
+
+### real-mini 1.7B（run 40237414373）：四项判定全过，全面优于 0.6B
+
+同一张 120 句对照表（`table_zh.tsv`，免 API key）、同配方（LoRA r=32 α=64、
+4 epoch、lr 3e-4、batch 1×grad-acc 2、float32 纯 CPU）：
+**240 步 / 48.3 分钟 / final loss 0.236**（0.6B 为 37.6 分钟 / 0.347）。
+
+| 判定项 | 0.6B | **1.7B** |
+|---|---|---|
+| verbatim 相似度（≥0.55） | 0.844 | **0.906**（汉字 95.3%，整条泄漏 0/20） |
+| polish_zh 相似度 / 口癖命中 | 0.9475 / 0 | **0.9573 / 0** |
+| translate_en 拉丁占比（≥0.60） | 92.5% | **95.5%**（汉字残留 0.19%） |
+| 静音双模式为空 | ✔ | ✔ |
+
+1.7B 直出样例（评测集，音频未进训练）：
+> [translate_en] Photographing wildlife usually involves a telephoto lens…
+> [polish_zh] 拍摄野生动物通常会用到长焦镜头，不过拍鸟群或微小生物之类的对象则需要其他镜头。
+> （0.6B 在同句上把「拍鸟群」断成「拍鸟、群」——1.7B 无此漂移）
+
+### gguf-e2（run 40242476360）：1.7B 真实适配器全产线直出英文
+
+merge（2.04B 参数，bf16 CPU 合并 4s）→ 官方转换器（TEXT f16 + MMPROJ q8_0）→
+llama-quantize Q4_K_M：**LM 1.03 GiB + mmproj 0.33 GiB = 1.36 GiB**（与 qsa E2 体积账
+一致，单包 ≤2GiB 预算成立）。llama-server b11201 探针（zh.wav，训练未见过）：
+
+| 场次 | 输出 | 判定 |
+|---|---|---|
+| 带 context "translate to English" | **"Open hours: 9:00 am to 5:00 pm."**（拉丁 60%/汉字 0%） | ✔ 直出英文 |
+| 不带 context | 「开饭时间早上九点至下午五点。」（汉字 93%） | ✔ 任务开关保住转写 |
+| 静音 + context | `language None<asr_text>` 空 | ✔ |
+| 静音不带 context | `language None<asr_text>` 空 | ✔ 穿越 merge→转换→Q4_K_M 全链 |
+
+### gguf-e2e（run 40235119900）：Rust 产品运行时 + 官方 1.7B GGUF
+
+`GgufAsr`（llama-cpp-sys-2 =0.1.157 静态链接，mtmd 音频路径）加载官方
+ggml-org/Qwen3-ASR-1.7B-Q8_0（2.0GiB）+ mmproj-Q8_0（0.33GiB）：
+LibriSpeech 参考 wav 转写逐字正确（"Stuff it into you. His belly counselled him."，
+4 vCPU 上 2.5s），context 冒烟通过；`cargo test --release gguf` 双平台 CI 常跑
+（llama.cpp 源码静态编译 ubuntu/windows 两腿均过，无 DLL/so 伴生）。
+
+### GGUF 路线踩坑速记
+
+* `llama_context_default_params` 的 `n_threads/n_threads_batch/n_batch` 在 pin 版本是
+  i32/u32 混合——照 qsa 的 bindgen 实测签名写，不要猜；
+* `llama_token_to_piece` pin 版本签名 `(vocab, token, buf, length, lstrip, special)`，
+  special=true 才会带出 `<asr_text>` 特殊 token 字面量（解析依赖它）；
+* mtmd 日志三个入口都要桥接（llama_log_set / ggml_log_set / mtmd_helper_log_set），
+  少一个就有逐段计时行直写 stderr；
+* b11201 的 convert `--mmproj` 按 `--outfile` 原名落盘（不自动加 mmproj- 前缀）；
+* ubuntu 预编译 llama 二进制是 .tar.gz（windows 才是 .zip）。

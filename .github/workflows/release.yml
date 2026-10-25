@@ -1,6 +1,6 @@
 # 说 · Shuo — 打包 / 发版
 #
-# 触发：推 tag `v*`（例如 `git tag v0.2.1 && git push origin v0.2.1`），
+# 触发：推 tag `v*`（例如 `git tag v26.10.25 && git push origin v26.10.25`），
 #       或手动 `workflow_dispatch`（只构建，不建 release）。
 #
 # 不做缓存：每次都是干净构建，省心、结果可复现。

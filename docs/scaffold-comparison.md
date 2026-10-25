@@ -74,7 +74,7 @@
 
 | 指标 | Tauri | Electron |
 |---|---|---|
-| 安装包 | `Shuo_0.2.0_amd64.deb` **16 MB**；AppImage **96 MB** | Electron dist **289 MB**（未压缩）；打包后通常 120–200 MB |
+| 安装包 | `Shuo_<版本>_amd64.deb` **16 MB**；AppImage **96 MB** | Electron dist **289 MB**（未压缩）；打包后通常 120–200 MB |
 | 进程数（空闲） | 1（+ ORT 线程） | 4–6（main / renderer / GPU / utility）+ 引擎子进程 |
 | RSS（模型已加载） | **3.27 GB** | **3.59 GB** |
 | 推理传输 | 无（同进程） | 每 10 s 音频 ≈ 0.9 MB Base64（48 kHz f32） |

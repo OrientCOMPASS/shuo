@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.2.0 — 2026-10-25
+## 26.10.25 — 2026-10-25
+
+> 版本号自本版起改为日期 `YY.MM.DD`，tag 为 `v26.10.25`；同日多次发版自动加 `-2`、`-3`。
 
 ### 新增 — Tauri 3 全 Rust 重写（`src-tauri/`）
 - **推理全部搬到 Rust**：`ort` 加载 Qwen3-ASR-0.6B（mel → conv → transformer → decoder init/step）与 Qwen3.5-2B（embed + decoder + 混合线性注意力状态），不再需要 Python / PyTorch / onnxruntime-python

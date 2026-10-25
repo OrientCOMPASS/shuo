@@ -364,7 +364,7 @@ impl GgufAsr {
     Ok(AsrResult {
       text,
       language: lang,
-      audio_s: wav.len() as f64 / SAMPLE_RATE as f64(),
+      audio_s: wav.len() as f64 / SAMPLE_RATE as f64,
       asr_s: t0.elapsed().as_secs_f64(),
       tokens,
       chunks: 1,
@@ -401,7 +401,7 @@ pub fn parse_asr_output(raw: &str) -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-  use super::parse_asr_output;
+  use super::*;
 
   #[test]
   fn parse_asr_output_variants() {

@@ -552,6 +552,7 @@ jobs:
           ADAPTER=art/out/smoke/lora
           [ -d "$ADAPTER" ] || ADAPTER=art/out/real/lora
           echo "适配器: $ADAPTER"
+          echo "ADAPTER_KIND=$([ "$ADAPTER" = "art/out/real/lora" ] && echo real || echo smoke)" >> "$GITHUB_ENV"
           python finetune/patch_onnx_lora.py \
             --model-dir "$DAUMEE_DIR" \
             --hf-model "${{ inputs.model }}" --adapter "$ADAPTER" \
@@ -561,14 +562,30 @@ jobs:
           test -f models/Qwen3-ASR-0.6B-ONNX-CPU-unified/unified.json
           python -c "import json; d=json.load(open('models/Qwen3-ASR-0.6B-ONNX-CPU-unified/unified.json',encoding='utf-8')); print(json.dumps({k:d[k] for k in ('kind','patched_modules','lora')}, ensure_ascii=False))"
 
-      - name: ORT 行为复测（smoke 适配器只断言管线/格式，不断言质量）
+      - name: 下载中文测试音频（real 适配器行为验证用，训练未见过的外部音频）
+        run: |
+          curl -sL --fail --retry 3 -o zh.wav "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main/test_wavs/zh.wav"
+          python3 -c "import wave; w=wave.open('zh.wav'); print('zh.wav', w.getnframes()/w.getframerate(), 's')"
+
+      - name: ORT 行为复测（smoke=管线/格式断言；real=任务生效+静音双模式断言）
         run: |
           set -e
-          python finetune/verify_unified_onnx.py \
-            --model-dir models/Qwen3-ASR-0.6B-ONNX-CPU-unified \
-            --audio "$DAUMEE_DIR/test_audio/librispeech_1_1089_1.wav" \
-            --check-set smoke --expect-task translate_en --silence-secs 2 \
-            --threads 4 --report out/patch/verify_report.json
+          if [ "$ADAPTER_KIND" = "real" ]; then
+            # Gate 3 完整行为验证：real-mini 适配器补丁包在量化 ONNX 运行时上
+            # 必须兑现「translate_en 直出英文 + 静音双模式空」（qsa T4 教训：
+            # int8 量化会改变行为，必须在最终运行时形态复测）
+            python finetune/verify_unified_onnx.py \
+              --model-dir models/Qwen3-ASR-0.6B-ONNX-CPU-unified \
+              --audio zh.wav \
+              --check-set unified --expect-task translate_en --silence-secs 2 \
+              --threads 4 --report out/patch/verify_report.json
+          else
+            python finetune/verify_unified_onnx.py \
+              --model-dir models/Qwen3-ASR-0.6B-ONNX-CPU-unified \
+              --audio "$DAUMEE_DIR/test_audio/librispeech_1_1089_1.wav" \
+              --check-set smoke --expect-task translate_en --silence-secs 2 \
+              --threads 4 --report out/patch/verify_report.json
+          fi
 
       - name: 补丁前后对照（原始包也必须仍可推理——补丁不破坏基线）
         run: |

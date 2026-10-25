@@ -248,9 +248,20 @@ class OrtAsr:
                 "seconds": round(time.time() - t0, 2)}
 
 
-def script_ratio(pattern, text: str) -> float:
-    chars = [c for c in text if not c.isspace()]
-    return sum(1 for c in chars if pattern.match(c)) / len(chars) if chars else 0.0
+def script_share(pattern, text: str) -> float:
+    """脚本占比（字母归一）：分母只数 CJK/拉丁字母，排除数字/符号/标点。
+
+    实测教训（Gate 3 首跑）：'Open time: 9:00 AM to 5:00 PM.' 这类数字密集的
+    短句按全字符口径拉丁占比被数字/冒号稀释到 58%（<0.6 误判"未生效"），
+    字母归一口径为 100%。全文本无字母（纯数字/符号）时按目标脚本命中记 1.0
+    ——数字直出（如报数音频的译文就是数字）是翻译任务的合法输出形态。
+    """
+    cjk = sum(1 for c in text if CJK.match(c))
+    latin = sum(1 for c in text if LATIN.match(c))
+    total = cjk + latin
+    if total == 0:
+        return 1.0 if text.strip() else 0.0
+    return sum(1 for c in text if pattern.match(c)) / total
 
 
 # ---------------------------------------------------------------- 主流程
@@ -334,12 +345,12 @@ def main() -> int:
             if not out:
                 fails.append(f"{name}: 任务模式输出为空")
             if args.expect_task == "translate_en":
-                r = script_ratio(LATIN, out)
+                r = script_share(LATIN, out)
                 rec["task_latin_ratio"] = round(r, 4)
                 if r < 0.6:
                     fails.append(f"{name}: translate_en 未生效（拉丁占比 {r:.0%}）")
             elif args.expect_task == "translate_zh":
-                r = script_ratio(CJK, out)
+                r = script_share(CJK, out)
                 rec["task_cjk_ratio"] = round(r, 4)
                 if r < 0.6:
                     fails.append(f"{name}: translate_zh 未生效（CJK 占比 {r:.0%}）")

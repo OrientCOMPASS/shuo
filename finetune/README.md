@@ -182,3 +182,58 @@ python finetune/verify_unified_onnx.py --model-dir models/Qwen3-ASR-0.6B-ONNX-CP
 
 产品回归（push 即跑）在 `.github/workflows/ci.yml`：Rust 构建+单测（ubuntu/windows）
 + finetune 脚本纯逻辑校验 + 提示词对表 + UI 语法。
+
+## 实测记录（2026-10-25，GitHub 托管 runner，全链路首次跑通）
+
+### real-mini 0.6B（run 40235990485）：四项判定全过，任务开关学成
+
+数据：FLEURS cmn_hans_cn 前 120 条（≤15s）+ 仓库内 120 句人工对照表
+（`table_zh.tsv`：polish_zh 书面化 + translate_en 英译，**无任何 API key**）；
+训练 100 条、评测 20 条（音频不进训练集）+ 静音 20 条。
+模型 Qwen3-ASR-0.6B + LoRA r=32 α=64，4 epoch，batch 1×grad-acc 2，lr 3e-4，
+float32 全程 CPU：**240 步 / 37.6 分钟 / final loss 0.347**（整轮 job 约 47 分钟）。
+
+| 判定项 | 结果 | 数值 |
+|---|---|---|
+| 任务生效 polish_zh | ✔ | 与书面化参考相似度 0.9475，口癖命中 0，20/20 非空 |
+| 任务生效 translate_en | ✔ | 拉丁占比 **92.5%**、汉字 2.9%——语音直出英文 |
+| 没有遗忘 verbatim | ✔ | 相似度 0.844、汉字 94.7%、整条泄漏 0/20 |
+| 静音行为（双模式） | ✔ | 任务/转写两模式均 `language None` + 空文本（基座同样为空） |
+
+直出样例（模型输出，非 LLM 后处理；括号内为对照表参考）：
+
+> [translate_en] Sharks do exist, but they rarely attack humans; most sha…
+> （Sharks do exist, but they rarely attack humans; most sharks are afraid of people and swim away.——几乎逐字）
+> [polish_zh] 拍摄野生动物通常会用到长焦镜头，不过拍鸟、群或微小生物之类的对象则需要其他镜头。
+> （源转写是「拍 摄 野 生 动 物 …」字符流——并字+标点一步直出）
+
+质量评估（诚实版）：120 句对照表足以让**任务开关**稳定成立（带 prompt 换任务、
+不带 prompt 保转写、静音保空）；polish/translate 的输出主体正确，个别词有漂移
+（「拍鸟群」→「拍鸟、群」）。放量（gpu-train，≥2000 句 + api 后端）可提精度，
+判定闸与产线不变。
+
+### Gate 1/2/3 ONNX 补丁链（Daumee int8 包，产品运行时形态）
+
+| 闸 | run | 结果 |
+|---|---|---|
+| Gate 1 探针 | 40233236069 | 250/250 模块映射；同源 rel_err 中位 3.11e-2 / 最坏 1.01e-1（per-tensor 动态 int8 噪声量级，双阈值判定）；削顶 0.0001% → **全 GO** |
+| Gate 2 补丁（smoke 适配器） | 40235082851 | decoder_init 196 + decoder_step 196 + 音频塔 54 = **250/250 补丁**，坏元素 0，6.5 分钟；unified.json 产出 |
+| Gate 3 行为复测（**real 适配器**） | 40240621011 | zh.wav（训练未见过）：verbatim → `开放时间：早上9点至下午5点。`；translate_en → **`Broadcast time: 9:00 AM to 5:00 PM.`（int8 量化后任务开关仍成立）**；静音双模式空；基座包对照 → 带不带 context 输出几乎相同（印证「基座只把 context 当偏置」） |
+| Gate 3 Rust 运行时 | 40231060419 | `SHUO_ASR_DIR cargo test`：LibriSpeech 转写逐字正确 + context 冒烟通过 |
+
+### 踩坑速记（均已收敛进代码/工作流）
+
+* FLEURS 普通话配置名是 `cmn_hans_cn`（`zh_cn` 不存在，ValueError 实测清单）；
+* Daumee decoder 是 **per-tensor 动态 int8**：反量化噪声比 k2-fsa per-channel 高
+  一个量级 → `match_one` 加唯一性兜底（次优>4×最优），同源判据改「中位+最坏」双阈值；
+* `decoder_init/step` 共享 LM 权重：补丁去重必须**按文件内**（全局去重会漏掉 step，
+  模型直接精分）；
+* onnx 外置数据检测：protobuf repeated 字段没有 presence，`HasField("external_data")`
+  直接 ValueError，用 `len()`；
+* 脚本占比要**字母归一**：`Open time: 9:00 AM to 5:00 PM.` 全字符口径拉丁 58%
+  （被数字稀释）误判未生效，字母口径 100%；
+* Windows debug 构建 esaxx C++ 静态 CRT 与 Rust 动态 CRT 混链 LNK2005 → CI 一律 release；
+* LoRA 适配器不能跨基座尺寸挂载（0.6B→1.7B 音频塔 18×896 vs 24×1024 形状爆炸），
+  merge 前 fail-fast 校验 adapter_config 的 base_model；
+* 2 步 stub 适配器的静音行为无质量含义（实测 no-context 幻觉《小豬的夢》），
+  冒烟场次（expect=any）静音非空仅记录警告，硬判定留给真实适配器场次。

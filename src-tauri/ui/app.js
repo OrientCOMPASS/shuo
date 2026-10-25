@@ -50,6 +50,7 @@ const EXTRA = {
     "settings.single_state_unified": "Unified package detected — prompts are executed as instructions.",
     "settings.single_state_base": "Base package (no unified.json) — prompt only biases recognition. Build a unified package with the finetune/ pipeline.",
     "status.single": "single-model",
+    "status.single_base": "base model",
     "badge.single": "single-model",
     "settings.engine": "Models & engine",
     "settings.interface": "Interface",
@@ -105,6 +106,7 @@ const EXTRA = {
     "settings.single_state_unified": "已检测到统一包——提示词会被当作任务指令执行。",
     "settings.single_state_base": "当前为基座包（无 unified.json）——提示词仅作识别偏置。可用 finetune/ 产线制作统一包。",
     "status.single": "直出",
+    "status.single_base": "基座包",
     "badge.single": "单模型直出",
     "settings.engine": "模型与引擎",
     "settings.interface": "界面",
@@ -289,8 +291,8 @@ function renderStatus(s) {
   if (chipSingle) {
     chipSingle.hidden = !singleOn;
     if (singleOn) {
-      const sLabel = `${t("status.single")} · ${asr.asr_unified ? t("status.ready") : t("settings.single_state_base").split("——")[0]}`;
-      setChip(chipSingle, asr.asr_unified ? "ok" : "pending", asr.asr_unified ? `${t("status.single")} · ${t("status.ready")}` : sLabel);
+      const label = `${t("status.single")} · ${asr.asr_unified ? t("status.ready") : t("status.single_base")}`;
+      setChip(chipSingle, asr.asr_unified ? "ok" : "pending", label);
     }
   }
   renderSingleModelState();

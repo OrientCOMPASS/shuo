@@ -123,6 +123,16 @@ python finetune/verify_unified_onnx.py --model-dir models/Qwen3-ASR-0.6B-ONNX-CP
 子目录；encoder fp32 权重带外置 `.data`（保存时重新外置，产物同构）；
 **decoder_init 与 decoder_step 共享 LM 权重，两处都要补**（去重按文件内而非全局）。
 
+### Daumee 包 Gate 1 首跑实测（run 40231057836，cpu-smoke 适配器 r=8）
+
+| 事实 | 数值 | 含义 |
+|---|---|---|
+| 张量地图 | decoder_{init,step}.int8 各 197 个可匹配量化权重（名字被导出器匿名化为 `val_N_quantized`）；encoder_transformer 110 个 fp32；encoder_conv 2 个 | 值匹配（不依赖名字）是唯一可行路线 |
+| 量化摆位 | decoder 为 **per-tensor 动态 int8**（反量化噪声中位 2.86e-2、最大 >5e-2，比 k2-fsa per-channel 高一个量级）；encoder fp32 无损 | 绝对误差阈值会误杀 → `match_one` 增加**唯一性兜底**（次优 > 4×最优 且最优 < 0.30 即接受；错层候选 ~1.0 量级，判别裕度仍 >6×），`--max-match-rel` 默认放宽到 0.15，同源判据 `--max-src-rel` 默认 0.06 |
+| 重量化削顶 | 最坏 0.0001% | 按原 scale/zp 直接写回，无需重算（GO） |
+| init/step 重复权重 | 同一 HF key 在两个 decoder 文件各匹配一次（rel_err 完全相同） | 探针 flags 里的「被多个 ONNX 张量匹配」是预期现象；补丁器按文件内去重、两处都写 |
+| tied lm_head/embed | 个别张量 best==second 完全相等 | LoRA 不碰 lm_head/embed，补丁器按 mod_by_hfkey 过滤，无害（qsa 在 k2-fsa 包上同样观测到） |
+
 ### C. 真实训练（GPU 放量 / CPU real-mini）
 
 * `real-mini`（CI 手动触发）：`--optimizer table` + 仓库内对照表

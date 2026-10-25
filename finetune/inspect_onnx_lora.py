@@ -314,8 +314,11 @@ def main() -> int:
                          "decoder 为 per-tensor 动态 int8，反量化噪声实测中位 2.86e-2/"
                          "最大 >5e-2，故默认放宽到 0.15（错层候选 ~1.0 量级，判别裕度仍 >6×）")
     ap.add_argument("--max-src-rel", type=float, default=0.06,
-                    help="GO-同源判据：匹配 rel_err 上限（per-channel 包可收紧到 0.02；"
-                         "per-tensor 动态 int8 的量化噪声本身就 ~5e-2，默认 0.06）")
+                    help="GO-同源判据：匹配 rel_err **中位数**上限（per-channel 包可收紧到 "
+                         "0.02；per-tensor 动态 int8 的量化噪声本身就 ~3e-2，默认 0.06）")
+    ap.add_argument("--max-src-worst", type=float, default=0.25,
+                    help="GO-同源判据：匹配 rel_err **最坏值**上限（重尾张量的 per-tensor "
+                         "量化噪声实测可达 1e-1；不同源的信号是大面积高误差而非单点）")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
 
@@ -476,10 +479,17 @@ def main() -> int:
                        f"（含音频塔；跨 {[f.name for f in files]}）")
     else:
         verdict.append(f"NO-GO? 适配器映射 {len(dw_stats)}/{n_mods}，未映射示例: {unmapped_mods[:4]}")
-    if worst_match_rel < args.max_src_rel and rel_errs:
-        verdict.append(f"GO-同源: HF↔ONNX 值匹配最大 rel_err {worst_match_rel:.2e} < {args.max_src_rel}")
+    # 同源判据要感知量化摆位：per-tensor 动态 int8（Daumee decoder）的反量化噪声
+    # 随张量尾部离群值波动（实测中位 3.1e-2、重尾张量最坏 1.01e-1），单一 worst-case
+    # 阈值会误杀；「不同源」的真实信号是**大面积**高误差（中位 ~1.0 量级），
+    # 故用 中位 < max_src_rel 且 最坏 < max_src_worst 双阈值。
+    med_rel = sorted(rel_errs)[len(rel_errs) // 2] if rel_errs else 0.0
+    if rel_errs and med_rel < args.max_src_rel and worst_match_rel < args.max_src_worst:
+        verdict.append(f"GO-同源: HF↔ONNX 值匹配 rel_err 中位 {med_rel:.2e} < {args.max_src_rel}"
+                       f"，最坏 {worst_match_rel:.2e} < {args.max_src_worst}（per-tensor int8 噪声量级）")
     else:
-        verdict.append(f"NO-GO? 值匹配误差过大: {worst_match_rel:.2e}（阈值 {args.max_src_rel}）")
+        verdict.append(f"NO-GO? 值匹配误差过大: 中位 {med_rel:.2e} / 最坏 {worst_match_rel:.2e}"
+                       f"（阈值 {args.max_src_rel} / {args.max_src_worst}）")
     if worst_clip < 0.01:
         verdict.append(f"GO-量化: 按原 scale 重量化削顶 {worst_clip:.4%} < 1%")
     else:
@@ -493,7 +503,8 @@ def main() -> int:
         "skipped": skipped, "adapter_modules": n_mods, "adapter_mapped": len(dw_stats),
         "unmapped_modules": unmapped_mods[:40],
         "worst": {"rel_dw": round(worst_rel, 5), "clip_frac": round(worst_clip, 6),
-                  "match_rel_err": round(worst_match_rel, 8)},
+                  "match_rel_err": round(worst_match_rel, 8),
+                  "match_rel_err_median": round(med_rel, 8)},
         "dw_stats_sample": dw_stats[:12] + dw_stats[-6:],
         "verdict": verdict, "seconds": round(time.time() - t0, 1),
     }

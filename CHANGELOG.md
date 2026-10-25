@@ -6,10 +6,13 @@
 - **推理全部搬到 Rust**：`ort` 加载 Qwen3-ASR-0.6B（mel → conv → transformer → decoder init/step）与 Qwen3.5-2B（embed + decoder + 混合线性注意力状态），不再需要 Python / PyTorch / onnxruntime-python
 - **数值对齐**：mel 滤波器与 librosa 一致（max diff 3.7e-9），mel 谱 2.1e-5，encoder 8.7e-7；LLM chat prompt 与 `chat_template.jinja`（`enable_thinking=false`）逐 token 对齐（`llm::tests::chat_prompt_token_ids_match_python`）
 - **原生音频**：cpal 常开采集 + 0.5 s 预缓冲 + 500 ms 收尾，AGC 归一化到 -1 dBFS
+- **历史记录**：默认开启，文件与内存都限制 500 条；关闭时界面明确提示
+- **界面**：小录音按钮 + 顶部结果卡片 + 下方历史占主要空间；历史时间单独一行，避免与正文重叠
 - **前端**：纯静态 HTML/CSS/JS（`src-tauri/ui/`），复用 27 种语言包；设置抽屉、历史、结果卡片、托盘
 - **Windows 热键**：低级键鼠钩子（`WH_KEYBOARD_LL` / `WH_MOUSE_LL`），支持按住说话与鼠标侧键，过滤自身注入事件
 - **Linux 热键**：优先 xdg-desktop-portal `GlobalShortcuts`（GNOME/KDE Wayland，按下+松开信号），portal 不可用时 evdev 直读 `/dev/input/event*`；deb 自带 udev 规则
-- **Linux 上屏**：剪贴板 + 粘贴快捷键（Ctrl+V，门户/工具发键），逐字符 keysym 因会被当前输入法改写而不再使用
+- **两个独立热键**（各带开关）：主热键（默认 F2）→ Ctrl+V 上屏（图形界面）；终端热键（默认 F3）→ Ctrl+Shift+V 上屏（终端 / TUI）
+- **Linux 上屏**：剪贴板 + 粘贴快捷键（门户/工具发键）；逐字符 keysym 因会被当前输入法改写而不再使用
 - **Windows 上屏**：`SendInput` + `KEYEVENTF_UNICODE`（与 Python 版 `send_unicode_text` 同一套）
 - **打包**：Linux deb（16 MB，含降噪模型、udev 规则、门户桌面文件）/ AppImage（96 MB）；Windows NSIS 配置 + `build.ps1`
 - **门户集成**：启动时注册 host app id（`com.shuo.desktop`），并确保 `com.shuo.desktop.desktop` 存在（AppImage 也能用）

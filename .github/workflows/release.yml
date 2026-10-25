@@ -165,6 +165,23 @@ jobs:
           cp artifacts/*-setup.exe "out/Shuo_${VERSION}_x64-setup.exe"
           ls -lh out
 
+      - name: 校验产物（真实安装包 + 带版本号，不能是 zip）
+        run: |
+          set -e
+          VERSION="${GITHUB_REF_NAME#v}"
+          n=$(find out -maxdepth 1 -type f | wc -l)
+          test "$n" -eq 3 || { echo "产物数量不对：$n"; ls -l out; exit 1; }
+          if ls out/*.zip >/dev/null 2>&1; then
+            echo "Release 里出现 zip：artifact 没有被解压"; exit 1
+          fi
+          for f in out/*; do
+            case "$f" in
+              *"${VERSION}"*) ;;
+              *) echo "文件名缺少版本号：$f"; exit 1 ;;
+            esac
+          done
+          file out/*
+
       - name: 发布到 GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

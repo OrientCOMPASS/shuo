@@ -167,10 +167,15 @@ def main() -> int:
                 r["rtf"] = round(r["secs"] / args.audio_secs, 3)
 
     # ---- 静音行为（可选）：产品依赖「静音 -> 空输出」剔除噪音段 ----
+    # 严格度与 expect 挂钩：latin/cjk（真实适配器的行为验证）下非空判失败；
+    # any（stub/冒烟适配器只验管线机械性）下非空仅记录警告——2 步 stub LoRA
+    # 本就谈不上行为质量（qsa 判定原则：冒烟只看管线跑通），静音双模式的
+    # 硬判定留给真实适配器场次与 eval_unified 的 transformers 侧评测。
     if args.check_silence:
         import tempfile
         import wave
 
+        strict_silence = args.expect in ("latin", "cjk")
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
             sil_path = Path(f.name)
         with wave.open(str(sil_path), "wb") as w:
@@ -184,11 +189,15 @@ def main() -> int:
             lang = res.get("lang_tag", "")
             ok = (not res["ok"]) or (len(body) <= 2 or lang.lower() == "none")
             report["runs"][tag] = {**res, "parsed_body": body, "parsed_lang": lang,
-                                   "empty_ok": bool(ok)}
+                                   "empty_ok": bool(ok), "strict": strict_silence}
             log(f"[{tag}] ok={res['ok']} raw={res.get('text', '')[:60]!r} "
                 f"-> body={body[:30]!r} lang={lang!r} {'✔ 空/None' if ok else '✘ 非空'}")
             if not ok:
-                fails.append(f"{tag}: 静音输出非空（{body[:30]!r}）")
+                if strict_silence:
+                    fails.append(f"{tag}: 静音输出非空（{body[:30]!r}）")
+                else:
+                    log(f"⚠ {tag}: 静音非空——expect=any（冒烟适配器）仅记录不判定；"
+                        "静音双模式硬判定在真实适配器场次（expect=latin/cjk）执行")
         sil_path.unlink(missing_ok=True)
 
     log("=" * 60)

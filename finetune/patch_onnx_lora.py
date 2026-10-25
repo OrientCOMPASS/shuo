@@ -184,8 +184,7 @@ def main() -> int:
             dest = out_dir / rel_root / f.name
             dest.parent.mkdir(parents=True, exist_ok=True)
             had_ext = (f.with_suffix(f.suffix + ".data").is_file()
-                       or any(t_.HasField("external_data") and len(t_.external_data)
-                              for t_ in m.graph.initializer))
+                       or any(len(t_.external_data) for t_ in m.graph.initializer))
             if n_patch:
                 patched_files.add(f.name)
                 if had_ext:

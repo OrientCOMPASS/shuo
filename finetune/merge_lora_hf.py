@@ -57,6 +57,19 @@ def main() -> int:
             pass
 
     t0 = time.time()
+    # 适配器-基座一致性校验（fail fast，在 25s+ 的基座加载之前）：
+    # LoRA ΔW 绑定基座权重空间，0.6B 适配器挂 1.7B 必然形状爆炸
+    # （音频塔 18 层×896 vs 24 层×1024，qsa 实测「形状硬不兼容」；本仓库
+    # gguf-e2 首跑也以同款 size mismatch 实证过一次）
+    acfg_path = Path(args.adapter) / "adapter_config.json"
+    if acfg_path.is_file():
+        acfg = json.loads(acfg_path.read_text(encoding="utf-8"))
+        rec_base = str(acfg.get("base_model_name_or_path") or "")
+        if rec_base and Path(rec_base).name != Path(args.base).name:
+            raise SystemExit(
+                f"适配器基座（{rec_base}）与 --base（{args.base}）不一致——"
+                "LoRA 不能跨基座/跨尺寸挂载，请用同基座训练的适配器")
+
     import torch
     # import qwen_asr 触发 qwen3_asr 的 AutoClass 注册（transformers 4.57.6 原生支持）
     import qwen_asr  # noqa: F401

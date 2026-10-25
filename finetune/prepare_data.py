@@ -25,7 +25,7 @@
          配合 --dump-transcripts 离线人工整理）
 
 数据源（--source）：
-  fleurs   HF google/fleurs 流式读取（默认 zh_cn，CC-BY-4.0；--fleurs-lang 可换）
+  fleurs   HF google/fleurs 流式读取（默认 cmn_hans_cn 普通话，CC-BY-4.0；--fleurs-lang 可换）
   wav-dir  自备目录：--wav-dir 指向 wav，--transcripts 指向 "文件名<TAB>转写" TSV
 
 用法（CI 冒烟）：
@@ -51,12 +51,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from prompts import PRESETS, SILENCE_TAG, TASK_KIND, VERBATIM_KEY, lang_tag  # noqa: E402
 
 # fleurs 配置名 -> Qwen3-ASR 输出格式里的语言名（`language X<asr_text>` 的 X）
+# 注意：fleurs 的普通话配置名是 cmn_hans_cn（不是 zh_cn，首跑 CI 实测报错拿到的清单）
 FLEURS_LANG_NAME = {
-    "zh_cn": "Chinese",
+    "cmn_hans_cn": "Chinese",
     "en_us": "English",
     "ja_jp": "Japanese",
     "ko_kr": "Korean",
-    "yue": "Cantonese",
+    "yue_hant_hk": "Cantonese",
     "de_de": "German",
     "fr_fr": "French",
     "es_419": "Spanish",
@@ -370,7 +371,7 @@ def make_silence_samples(audio_dir: Path, n: int, task_prompts: list[str],
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--source", choices=["fleurs", "wav-dir"], default="fleurs")
-    ap.add_argument("--fleurs-lang", default="zh_cn",
+    ap.add_argument("--fleurs-lang", default="cmn_hans_cn",
                     help=f"fleurs 配置名（语言名映射：{sorted(FLEURS_LANG_NAME)}）")
     ap.add_argument("--source-lang-tag", default="",
                     help="覆盖 `language X<asr_text>` 里的 X（默认按 --fleurs-lang 映射）")

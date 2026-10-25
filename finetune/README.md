@@ -49,7 +49,7 @@
 |---|---|
 | `prompts.py` | 任务提示词唯一事实源（训练=推理契约） |
 | `check_prompt_sync.py` | CI 对表：prompts.py ↔ asr.rs 逐字一致 |
-| `prepare_data.py` | 造数据：FLEURS（默认 zh_cn）或自备 wav → JSONL；优化后端 `none`/`stub`/`api`/`table`；`--silence-samples` 混静音样本；`--dump-transcripts` 导出转写供离线整理对照表 |
+| `prepare_data.py` | 造数据：FLEURS（默认 cmn_hans_cn 普通话）或自备 wav → JSONL；优化后端 `none`/`stub`/`api`/`table`；`--silence-samples` 混静音样本；`--dump-transcripts` 导出转写供离线整理对照表 |
 | `sft_lora.py` | 训练：官方数据管线 + peft LoRA + CPU 兜底（qsa 同款，任务无关） |
 | `eval_unified.py` | 评测：任务生效（按脚本占比/相似度）/ 未遗忘 / 整条泄漏计数 / 静音双模式；`--silence-only` 基座归因 |
 | `merge_lora_hf.py` | LoRA 合并回 HF（GGUF 产线用，feat/gguf-1.7b 分支） |
@@ -81,7 +81,7 @@
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install qwen-asr peft datasets soundfile librosa
 
-python finetune/prepare_data.py --source fleurs --fleurs-lang zh_cn \
+python finetune/prepare_data.py --source fleurs --fleurs-lang cmn_hans_cn \
     --limit 4 --eval-limit 2 --max-audio-secs 12 \
     --optimizer stub --tasks polish_zh,translate_en \
     --asr-ratio 0.4 --silence-samples 2 \

@@ -759,13 +759,17 @@ mod compare_tests {
 
   #[test]
   fn dump_mel_and_encoder() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../Qwen3-ASR-0.6B-ONNX-CPU");
+    let root = std::env::var("SHUO_ASR_DIR")
+      .map(std::path::PathBuf::from)
+      .unwrap_or_else(|_| std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../Qwen3-ASR-0.6B-ONNX-CPU"));
     if !root.join("onnx_models/encoder_conv.onnx").exists() {
       return;
     }
     let mut r = hound_lite::Wav::open(&root.join("test_audio/librispeech_0_1089_0.wav")).unwrap();
     let wav: Vec<f32> = r.read_i16_mono().iter().map(|&s| s as f32 / 32768.0).collect();
     let (mel_data, frames) = mel::log_mel(&wav);
+    // 调试转储目录 CI 上不存在，先建再写
+    std::fs::create_dir_all("/tmp/opencode").unwrap();
     std::fs::write("/tmp/opencode/mel_rs.f32", mel_data.iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<u8>>()).unwrap();
     eprintln!("frames={frames}");
     let mut p = AsrPipeline::load(&root, 6).unwrap();

@@ -5,8 +5,8 @@
 #   rust-linux    WebKitGTK 等系统依赖 + cargo test --release（mel/llm/asr 单测；
 #                 模型类测试在 SHUO_ASR_DIR/仓库模型目录缺失时自动跳过——真实
 #                 模型 e2e 在 finetune.yml mode=ort-e2e 手动跑，不阻塞 push）
-#   rust-windows  cargo test（debug profile：release 下 windows_subsystem="windows"
-#                 的测试二进制没有控制台，debug 保证测试输出/判定正常）
+#   rust-windows  cargo test --release（debug 下 esaxx C++ 依赖静态 CRT 混链炸 LNK2005；
+#                 release 两侧 /MD 一致，release.yml 已验证）
 #   py-ui         finetune/ 脚本语法与纯逻辑校验（不装 torch）：py_compile、
 #                 提示词对表（prompts.py ↔ asr.rs 逐字一致）、stub 优化器/静音
 #                 样本/对照表后端单测、ui/app.js 语法（node --check）、
@@ -101,11 +101,14 @@ jobs:
           key: rust-win-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: rust-win-cargo-
 
-      # debug profile：release 的测试二进制是 GUI 子系统（无控制台），
-      # debug 下 cfg(debug_assertions) 生效、测试输出与判定都正常。
-      - name: 单元测试
+      # release profile：debug 下 esaxx_fast 的 C++ 依赖被 cc-rs 用静态 CRT（/MT →
+      # libcpmt.lib）编译，与 Rust 侧动态 CRT（msvcprt.lib）混链 → LNK2005/LNK1169
+      # （本仓库 windows 腿首跑实测）；release 两侧都是 /MD（release.yml 同款已验证）。
+      # windows_subsystem="windows" 只影响 PE 子系统标志：cargo 从控制台拉起测试
+      # 二进制时 std 句柄照常继承，输出与退出码判定不受影响。
+      - name: 单元测试（release）
         working-directory: src-tauri
-        run: cargo test
+        run: cargo test --release
 
   # ------------------------------------------------------ finetune 脚本 + UI
   py-ui:
@@ -182,7 +185,7 @@ jobs:
           # --- eval_unified: 脚本占比/相似度函数 ---
           from eval_unified import script_profile, sim
           sp = script_profile("你好world")
-          assert sp["cjk"] == 0.5 and sp["latin"] == 0.5, sp
+          assert sp["cjk"] == round(2 / 7, 4) and sp["latin"] == round(5 / 7, 4), sp
           assert sim("abc", "abc") == 1.0 and sim("abc", "xyz") == 0.0
 
           print("PURE_LOGIC_OK")

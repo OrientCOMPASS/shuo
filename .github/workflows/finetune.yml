@@ -102,10 +102,10 @@ jobs:
                   '| peft', peft.__version__, '| qwen-asr', md.version('qwen-asr')); \
             print('Qwen3ASRModel:', qwen_asr.Qwen3ASRModel)"
 
-      - name: 构造数据（FLEURS zh_cn + stub 伪优化 + 静音样本）
+      - name: 构造数据（FLEURS cmn_hans_cn + stub 伪优化 + 静音样本）
         run: |
           python finetune/prepare_data.py \
-            --source fleurs --fleurs-lang zh_cn --limit 4 --eval-limit 2 \
+            --source fleurs --fleurs-lang cmn_hans_cn --limit 4 --eval-limit 2 \
             --max-audio-secs 12 --optimizer stub --tasks "${{ inputs.tasks }}" \
             --asr-ratio 0.4 --silence-samples 2 \
             --audio-dir data/audio --out data/train.jsonl --eval-out data/eval.jsonl \
@@ -223,7 +223,7 @@ jobs:
       - name: 构造数据（table 优化后端 + 静音样本）
         run: |
           python finetune/prepare_data.py \
-            --source fleurs --fleurs-lang zh_cn --limit 100 --eval-limit 20 --max-audio-secs 15 \
+            --source fleurs --fleurs-lang cmn_hans_cn --limit 100 --eval-limit 20 --max-audio-secs 15 \
             --optimizer table --table finetune/table_zh.tsv --skip-unoptimized \
             --tasks "${{ inputs.tasks }}" --asr-ratio 0.35 --silence-samples 20 \
             --audio-dir data/audio --out data/train.jsonl --eval-out data/eval.jsonl
@@ -341,12 +341,12 @@ jobs:
           MAX_JOBS=4 pip install -U flash-attn --no-build-isolation || echo "flash-attn 安装失败，继续"
           python -c "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available())"
 
-      - name: 构造数据（FLEURS zh_cn + API 优化后端，system=任务提示词原文）
+      - name: 构造数据（FLEURS cmn_hans_cn + API 优化后端，system=任务提示词原文）
         env:
           SHUO_OPT_API_KEY: ${{ secrets.SHUO_OPT_API_KEY }}
         run: |
           python finetune/prepare_data.py \
-            --source fleurs --fleurs-lang zh_cn --limit ${{ inputs.samples }} --eval-limit 40 \
+            --source fleurs --fleurs-lang cmn_hans_cn --limit ${{ inputs.samples }} --eval-limit 40 \
             --max-audio-secs 20 --optimizer api --tasks "${{ inputs.tasks }}" \
             --api-base "${{ vars.SHUO_OPT_API_BASE }}" --api-model "${{ vars.SHUO_OPT_API_MODEL }}" \
             --api-key-env SHUO_OPT_API_KEY --asr-ratio 0.4 --silence-samples 200 \

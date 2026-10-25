@@ -58,7 +58,8 @@ permissions:
   actions: read   # 跨 run 下载适配器 artifact 需要
 
 concurrency:
-  group: finetune-${{ inputs.mode }}
+  # 按 mode+model 分组：0.6B 与 1.7B 的同名模式（如 real-mini）可并行跑
+  group: finetune-${{ inputs.mode }}-${{ inputs.model }}
   cancel-in-progress: false
 
 env:

@@ -56,7 +56,9 @@ def main() -> int:
     ap.add_argument("--hf-model", default="Qwen/Qwen3-ASR-0.6B")
     ap.add_argument("--adapter", required=True)
     ap.add_argument("--out-dir", required=True)
-    ap.add_argument("--max-match-rel", type=float, default=0.05)
+    ap.add_argument("--max-match-rel", type=float, default=0.15,
+                    help="值匹配相对误差上限（与探针同义；Daumee 包 decoder 为 per-tensor "
+                         "动态 int8，噪声实测 ~3e-2，match_one 另有唯一性兜底）")
     ap.add_argument("--min-elems", type=int, default=1024,
                     help="fp32 二维权重纳入补丁的元素数下限（与探针同义）")
     ap.add_argument("--max-clip", type=float, default=0.01,

@@ -445,6 +445,24 @@ jobs:
             --hf-model "${{ inputs.model }}" --adapter "$ADAPTER" \
             --out out/inspect/onnx_patch_report.json
 
+      - name: go/no-go 判定（NO-GO 判红）
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          rep = json.loads(pathlib.Path('out/inspect/onnx_patch_report.json').read_text(encoding='utf-8'))
+          verdict = rep.get('verdict', [])
+          for v in verdict:
+              print(' ', v)
+          nogo = [v for v in verdict if v.startswith('NO-GO')]
+          w = rep.get('worst', {})
+          print(f"  适配器映射 {rep.get('adapter_mapped')}/{rep.get('adapter_modules')}"
+                f" | 匹配 rel_err 最大 {w.get('match_rel_err')} | 削顶最坏 {w.get('clip_frac')}")
+          if nogo:
+              print('::error::Gate 1 判定 NO-GO——补丁路线不放行，先修映射/阈值再动补丁')
+              raise SystemExit(1)
+          print('✔ Gate 1 全 GO：适配器可全量映射，可进入 Gate 2（onnx-patch）')
+          PY
+
       - name: 上传探针报告
         if: always()
         uses: actions/upload-artifact@v7

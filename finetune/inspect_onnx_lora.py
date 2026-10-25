@@ -264,8 +264,13 @@ def dequant(entry, inits):
 def match_one(Wd, hf_by_shape, hf_fetch, cache, max_rel: float):
     """在 HF 权重里找与 Wd 值最匹配者（自动试转置摆位）。返回 (key, transposed, rel_err, second_rel)。
 
-    误差下限都超过 max_rel 则判为「HF 里没有它的同源权重」（返回 None）——
-    宁缺毋滥：错误映射比未映射危险得多。
+    接受规则（两条满足其一）：
+      a) 最优误差 <= max_rel（k2-fsa per-channel 包实测 ~1e-2 量级，直接过）；
+      b) **唯一性兜底**：次优 > 4×最优 且 最优 < 0.30——Daumee 包的 decoder 是
+         per-tensor 动态 int8（实测反量化噪声中位 2.86e-2、最大 >5e-2，超过
+         per-channel 一个量级），绝对误差阈值会误杀；而错层候选的相对误差在
+         ~1.0 量级（不相关权重），唯一性比值仍有 >8× 的判别裕度，安全。
+    两条都不满足则返回 None（宁缺毋滥：错误映射比未映射危险得多）。
     """
     import numpy as np
 
@@ -280,12 +285,14 @@ def match_one(Wd, hf_by_shape, hf_fetch, cache, max_rel: float):
             denom = max(1e-9, float(np.abs(Whf).mean()))
             rel = float(np.abs(Whf.astype(np.float32) - Wt).mean()) / denom
             results.append((rel, key, transposed))
-    if not results or results and min(r[0] for r in results) > max_rel:
+    if not results:
         return None
     results.sort()
     best = results[0]
     second = results[1][0] if len(results) > 1 else float("inf")
-    return best[1], best[2], best[0], second
+    if best[0] <= max_rel or (second > 4 * best[0] and best[0] < 0.30):
+        return best[1], best[2], best[0], second
+    return None
 
 
 # ------------------------------------------------------------------ 主流程
@@ -302,8 +309,13 @@ def main() -> int:
     ap.add_argument("--min-elems", type=int, default=1024,
                     help="无量化包装的 fp32 二维 initializer 也纳入值匹配的元素数下限"
                          "（兼容「Q/K/V/O 保 fp32」的混合摆位导出）")
-    ap.add_argument("--max-match-rel", type=float, default=0.05,
-                    help="值匹配的平均相对误差上限，超过视为 HF 里没有同源权重")
+    ap.add_argument("--max-match-rel", type=float, default=0.15,
+                    help="值匹配的平均相对误差上限（唯一性兜底前的第一道）；Daumee 包 "
+                         "decoder 为 per-tensor 动态 int8，反量化噪声实测中位 2.86e-2/"
+                         "最大 >5e-2，故默认放宽到 0.15（错层候选 ~1.0 量级，判别裕度仍 >6×）")
+    ap.add_argument("--max-src-rel", type=float, default=0.06,
+                    help="GO-同源判据：匹配 rel_err 上限（per-channel 包可收紧到 0.02；"
+                         "per-tensor 动态 int8 的量化噪声本身就 ~5e-2，默认 0.06）")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
 
@@ -464,10 +476,10 @@ def main() -> int:
                        f"（含音频塔；跨 {[f.name for f in files]}）")
     else:
         verdict.append(f"NO-GO? 适配器映射 {len(dw_stats)}/{n_mods}，未映射示例: {unmapped_mods[:4]}")
-    if worst_match_rel < 2e-2 and rel_errs:
-        verdict.append(f"GO-同源: HF↔ONNX 值匹配最大 rel_err {worst_match_rel:.2e} < 2e-2")
+    if worst_match_rel < args.max_src_rel and rel_errs:
+        verdict.append(f"GO-同源: HF↔ONNX 值匹配最大 rel_err {worst_match_rel:.2e} < {args.max_src_rel}")
     else:
-        verdict.append(f"NO-GO? 值匹配误差过大: {worst_match_rel:.2e}")
+        verdict.append(f"NO-GO? 值匹配误差过大: {worst_match_rel:.2e}（阈值 {args.max_src_rel}）")
     if worst_clip < 0.01:
         verdict.append(f"GO-量化: 按原 scale 重量化削顶 {worst_clip:.4%} < 1%")
     else:

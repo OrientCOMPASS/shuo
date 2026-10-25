@@ -44,11 +44,12 @@ Two implementations share the same `~/.shuo/` (config.json / history.json / shuo
 | `src/hotkey_windows.rs` | Low-level keyboard/mouse hooks (press **and** release, injected-event filter) |
 | `src/hotkey_linux.rs` | GlobalShortcuts portal (Wayland, primary) + evdev fallback (X11 / mouse buttons) |
 | `src/typing_windows.rs` | SendInput + `KEYEVENTF_UNICODE` |
-| `src/typing_linux.rs` | RemoteDesktop portal `NotifyKeyboardKeysym` (CJK OK) → wtype/ydotool/xdotool → clipboard |
+| `src/typing_linux.rs` | uinput virtual keyboard for paste shortcuts (no portal prompt) → RemoteDesktop (persistent restore token, re-request on revoke) → wtype/ydotool/xdotool → clipboard |
 | `src/config.rs` | `~/.shuo/config.json` + history, field-compatible with Python |
 | `src/state.rs` | AppState, loader/worker threads, events `engine-status`/`rec`/`asr`/`final`/`hotkey` |
 | `ui/` | Static frontend (index.html / style.css / app.js / locales) |
-| `linux/70-shuo-hotkey.rules` | udev rule for evdev fallback (installed by deb) |
+| `linux/70-shuo-hotkey.rules` | udev rules for evdev + uinput (`/dev/uinput` uaccess), installed by deb |
+| `linux/shuo-overlay.py` | XWayland status capsule helper (bottom, always-on-top, no focus); bundled as resource |
 
 ### Python / PySide6 (legacy, `legacy/2026-10-25-python/`)
 
@@ -73,7 +74,7 @@ Two implementations share the same `~/.shuo/` (config.json / history.json / shuo
 - **PyAudio MME only (Python):** GUI filters to MME devices; Chinese Windows may return GBK-encoded device names (fixed in app)
 - **ASR output regex (Python):** `^language\s+(\w+)\s*<asr_text>(.*)` in `legacy/2026-10-25-python/onnx_infer/asr.py:147`
 - **Recording:** Pre-buffer 0.5s rolling buffer, AGC peak-normalizes to -1 dBFS; release debounce 500ms
-- **Auto-type:** Windows SendInput + KEYEVENTF_UNICODE; Linux RemoteDesktop portal keysyms (CJK) with tool fallbacks
+- **Auto-type:** Windows SendInput + KEYEVENTF_UNICODE; Linux clipboard + paste shortcut via uinput (primary) or RemoteDesktop portal (fallback)
 - **LLM presets:** standard / moderate / aggressive / aggressive_no_punc / translate
 - **LLM prompt:** must match `chat_template.jinja` with `enable_thinking=false` exactly (ends with `<think>\n\n</think>\n\n`); guarded by `llm::tests::chat_prompt_token_ids_match_python`
 - **Global hotkey:** Windows = low-level hooks (RegisterHotKey can't detect release); Linux = `GlobalShortcuts` portal (needs host app-id registration + `com.shuo.desktop.desktop`), evdev as fallback

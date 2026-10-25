@@ -48,6 +48,12 @@ impl Sink {
     let _ = self.app.emit("rec", RecEvent { active, duration_s });
     if active {
       crate::hotkey::set_recording(true);
+      crate::set_busy(&self.app, Some(crate::BusyMode::Recording));
+    } else if duration_s >= 0.1 {
+      // 松开后马上进入「识别中」，避免闪一下消失
+      crate::set_busy(&self.app, Some(crate::BusyMode::Processing));
+    } else {
+      crate::set_busy(&self.app, None);
     }
   }
 
@@ -348,11 +354,13 @@ fn spawn_worker(state: Arc<AppState>, rx: std::sync::mpsc::Receiver<Job>) {
       while let Ok(job) = rx.recv() {
         let id = state.next_job_id();
         let _ = state.app.emit("processing", id);
+        crate::set_busy(&state.app, Some(crate::BusyMode::Processing));
         let cfg = state.config();
         let paste_mode = job.paste_mode;
         let result = transcribe(&state, &cfg, job);
         match result {
           Ok((asr, llm_text, llm_s)) => {
+            crate::set_busy(&state.app, None);
             let _ = state.app.emit(
               "asr",
               serde_json::json!({
@@ -399,6 +407,7 @@ fn spawn_worker(state: Arc<AppState>, rx: std::sync::mpsc::Receiver<Job>) {
             }
           }
           Err(e) => {
+            crate::set_busy(&state.app, None);
             crate::log_line(&format!("识别失败：{e}"));
             let _ = state.app.emit("asr-error", serde_json::json!({ "id": id, "error": e }));
           }

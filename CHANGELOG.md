@@ -8,6 +8,8 @@
 - **原生音频**：cpal 常开采集 + 0.5 s 预缓冲 + 500 ms 收尾，AGC 归一化到 -1 dBFS
 - **历史记录**：默认开启，文件与内存都限制 500 条；关闭时界面明确提示
 - **界面**：小录音按钮 + 顶部结果卡片 + 下方历史占主要空间；历史时间单独一行，避免与正文重叠
+- **状态胶囊**：底部（任务栏上方）显示「录音中 + 不规则波形」/「识别中 + 转圈」；XWayland 小窗置顶、不抢焦点、鼠标穿透，不需要 GNOME 扩展或注销
+- **Linux 上屏改用 uinput 虚拟键盘**：不再每次启动弹 RemoteDesktop「共享」授权；uinput 不可用时退回门户（restore token 记住授权，被撤回会自动重新申请）
 - **前端**：纯静态 HTML/CSS/JS（`src-tauri/ui/`），复用 27 种语言包；设置抽屉、历史、结果卡片、托盘
 - **Windows 热键**：低级键鼠钩子（`WH_KEYBOARD_LL` / `WH_MOUSE_LL`），支持按住说话与鼠标侧键，过滤自身注入事件
 - **Linux 热键**：优先 xdg-desktop-portal `GlobalShortcuts`（GNOME/KDE Wayland，按下+松开信号），portal 不可用时 evdev 直读 `/dev/input/event*`；deb 自带 udev 规则

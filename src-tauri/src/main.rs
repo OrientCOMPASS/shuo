@@ -11,6 +11,8 @@ mod denoise;
 mod dsp;
 mod hotkey;
 mod llm;
+#[cfg(target_os = "linux")]
+mod overlay_linux;
 mod mel;
 mod models;
 mod state;
@@ -113,6 +115,59 @@ pub fn threads() -> usize {
     .map(|n| n.get())
     .unwrap_or(4)
     .clamp(1, 16)
+}
+
+/// 屏幕底部的胶囊浮层：Linux 走 XWayland helper（不抢焦点），其它平台走独立窗口。
+#[derive(Clone, Copy)]
+pub enum BusyMode {
+  Recording,
+  Processing,
+}
+
+#[cfg(target_os = "linux")]
+pub fn set_busy(_app: &tauri::AppHandle, mode: Option<BusyMode>) {
+  let cmd = match mode {
+    Some(BusyMode::Recording) => "recording",
+    Some(BusyMode::Processing) => "processing",
+    None => "idle",
+  };
+  overlay_linux::send(cmd);
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn set_busy(app: &tauri::AppHandle, mode: Option<BusyMode>) {
+  let Some(w) = app.get_webview_window("busy") else { return };
+  let Some(mode) = mode else {
+    let _ = w.hide();
+    return;
+  };
+  let lang = crate::config::load_config().language;
+  let zh = lang.starts_with("zh") || lang == "yue";
+  let (kind, label) = match mode {
+    BusyMode::Recording => ("recording", if zh { "录音中" } else { "Recording" }),
+    BusyMode::Processing => ("processing", if zh { "识别中" } else { "Working" }),
+  };
+  let _ = app.emit_to(
+    "busy",
+    "busy-state",
+    serde_json::json!({ "mode": kind, "label": label }),
+  );
+  place_busy(&w);
+  let _ = w.show();
+}
+
+/// 贴在屏幕底部、任务栏上方一点（仅非 Linux 的独立窗口用）。
+#[cfg(not(target_os = "linux"))]
+fn place_busy(w: &tauri::WebviewWindow) {
+  use tauri::Manager;
+  let Ok(Some(mon)) = w.primary_monitor() else { return };
+  let scale = mon.scale_factor();
+  let screen = mon.size();
+  let win_w = 300.0 * scale;
+  let win_h = 72.0 * scale;
+  let x = ((screen.width as f64 - win_w) / 2.0).max(0.0) as i32;
+  let y = (screen.height as f64 - win_h - 96.0 * scale).max(0.0) as i32;
+  let _ = w.set_position(tauri::PhysicalPosition::new(x, y));
 }
 
 pub fn denoise_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
@@ -353,6 +408,8 @@ fn main() {
 
       ensure_portal_desktop_file();
       register_portal_app();
+      #[cfg(target_os = "linux")]
+      overlay_linux::start(app.handle());
 
       if let Err(e) = state.restart_recorder() {
         log_line(&format!("录音初始化失败：{e}"));

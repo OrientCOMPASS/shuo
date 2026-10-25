@@ -37,7 +37,8 @@ powershell -ExecutionPolicy Bypass -File src-tauri\build.ps1
   - 主热键（默认 `F2`）→ 识别后用 **Ctrl+V** 上屏，适合图形界面；
   - 终端热键（默认 `F3`）→ 识别后用 **Ctrl+Shift+V** 上屏，适合终端 / TUI。
 - **热键实现（Linux）**：优先走 `xdg-desktop-portal` 的 **GlobalShortcuts**（GNOME/KDE Wayland 官方通道，首次需在系统对话框里允许一次）；portal 不可用或要绑鼠标侧键时用 **evdev**（`/dev/input/event*`，需要 input 组权限或 `70-shuo-hotkey.rules`，deb 已自带）。
-- **自动输入（Linux）**：剪贴板 + 粘贴快捷键（首次授权一次 RemoteDesktop 门户），快捷键由触发录音的热键决定（Ctrl+V / Ctrl+Shift+V）。逐字符 keysym 注入会被当前输入法改写，已弃用。
+- **自动输入（Linux）**：剪贴板 + 粘贴快捷键，快捷键由触发录音的热键决定（Ctrl+V / Ctrl+Shift+V）。**首选 uinput 虚拟键盘**（不需要任何授权框，deb 的 udev 规则会放开 `/dev/uinput`）；uinput 不可用时退回 RemoteDesktop 门户（持久化 restore token，被撤回会自动重新申请）。
+- **状态胶囊（Linux）**：屏幕底部（任务栏上方）显示「录音中 + 波形 / 识别中 + 转圈」，XWayland 小窗置顶、不抢焦点、鼠标穿透；不需要 GNOME 扩展，也不需要注销重登录。
 - **自动输入（Windows）**：`SendInput` + `KEYEVENTF_UNICODE`，不经过剪贴板，终端 / Vim 也能用。
 - **模型查找顺序**：配置项 → `SHUO_MODEL_DIR` 环境变量（目录下放两个模型文件夹）→ `~/.shuo/models/` → 可执行文件上溯 → 仓库目录。
 

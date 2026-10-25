@@ -9,3 +9,6 @@
 # 之后重新插拔键盘/鼠标（或重新登录）即可。
 
 KERNEL=="event*", SUBSYSTEM=="input", TAG+="uaccess"
+
+# 上屏快捷键（uinput 虚拟键盘）
+KERNEL=="uinput", TAG+="uaccess"

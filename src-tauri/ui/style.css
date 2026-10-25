@@ -630,3 +630,15 @@ body.recording .rec-timer { color: var(--accent); }
   .cards { grid-template-columns: 1fr; }
   .history-panel { margin: 10px 12px 0; }
 }
+
+/* 热键行：开关固定宽度，不要被首列 flex 拉长 */
+.row > label.switch {
+  flex: 0 0 auto;
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+}
+.row > label.switch + label {
+  flex: 1 1 auto;
+  min-width: 0;
+}

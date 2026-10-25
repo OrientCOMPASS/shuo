@@ -21,10 +21,9 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use ashpd::desktop::Session;
+use ashpd::desktop::{PersistMode, Session};
 use ashpd::desktop::remote_desktop::{
   DeviceType, KeyState, RemoteDesktop, SelectDevicesOptions, StartOptions,
 };
@@ -32,19 +31,24 @@ use enumflags2::BitFlags;
 
 use crate::typing::PasteMode;
 
+#[path = "uinput.rs"]
+mod uinput;
+
 struct PortalText {
   rd: RemoteDesktop,
   session: Session<RemoteDesktop>,
 }
 
 static PORTAL: OnceLock<Mutex<Option<PortalText>>> = OnceLock::new();
-static PORTAL_DISABLED: AtomicBool = AtomicBool::new(false);
+/// 授权失败后的冷却时间，避免每次上屏都弹框；30s 后允许再次申请。
+static NEXT_PORTAL_TRY: Mutex<Option<std::time::Instant>> = Mutex::new(None);
 
 // evdev keycode（门户的 NotifyKeyboardKeycode 用这个，能正确带修饰键；
 // keysym 只适合字符，带 Ctrl/Shift 的组合会被输入法/合成器吃掉）
 const KEY_LEFTCTRL: i32 = 29;
 const KEY_LEFTSHIFT: i32 = 42;
 const KEY_V: i32 = 47;
+const KEY_INSERT: i32 = 110;
 
 fn has(cmd: &str) -> bool {
   Command::new("sh")
@@ -125,8 +129,27 @@ fn clipboard_paste(text: &str, mode: PasteMode) -> Result<(), String> {
   }
 }
 
+fn uinput_paste(mode: PasteMode) -> Result<(), String> {
+  use std::sync::Mutex;
+  use std::sync::OnceLock;
+  static VK: OnceLock<Mutex<Option<uinput::VirtualKeyboard>>> = OnceLock::new();
+  let cell = VK.get_or_init(|| Mutex::new(None));
+  let mut guard = cell.lock().map_err(|_| "uinput 状态锁损坏".to_string())?;
+  if guard.is_none() {
+    *guard = Some(uinput::VirtualKeyboard::open()?);
+    crate::log_line("uinput 虚拟键盘已就绪");
+  }
+  let codes: Vec<u16> = paste_keys(mode).iter().map(|c| *c as u16).collect();
+  guard.as_ref().unwrap().tap_combo(&codes)
+}
+
 /// 发 Ctrl+V（GUI 应用通用；终端请用 Ctrl+Shift+V，见文档）。
 fn send_paste_shortcut(mode: PasteMode) -> Result<(), String> {
+  // 首选 uinput：不需要门户授权，也不会每次启动弹「共享」
+  if uinput_paste(mode).is_ok() {
+    return Ok(());
+  }
+
   let portal = ensure_portal();
   if portal.is_ok() {
     match portal_paste(mode) {
@@ -166,19 +189,46 @@ fn send_paste_shortcut(mode: PasteMode) -> Result<(), String> {
 }
 
 fn ensure_portal() -> Result<(), String> {
-  if PORTAL_DISABLED.load(Ordering::Relaxed) {
-    return Err("门户注入已禁用（之前授权失败）".into());
-  }
   let cell = PORTAL.get_or_init(|| Mutex::new(None));
   let mut guard = cell.lock().map_err(|_| "门户状态锁已损坏".to_string())?;
-  if guard.is_none() {
-    let portal = futures_lite::future::block_on(connect_portal()).map_err(|e| {
-      PORTAL_DISABLED.store(true, Ordering::Relaxed);
-      e
-    })?;
-    *guard = Some(portal);
+  if guard.is_some() {
+    return Ok(());
   }
-  Ok(())
+  {
+    let next = NEXT_PORTAL_TRY.lock().unwrap();
+    if let Some(t) = *next
+      && std::time::Instant::now() < t
+    {
+      return Err("门户授权冷却中（稍后再试）".into());
+    }
+  }
+  let token = std::fs::read_to_string(token_path())
+    .ok()
+    .map(|s| s.trim().to_string())
+    .filter(|s| !s.is_empty());
+  // 先用记住的 token；如果 token 被撤回/失效，清掉并立刻重新申请（GNOME 会再弹一次共享框）
+  let first = futures_lite::future::block_on(connect_portal(token.as_deref()));
+  let result = match first {
+    Ok(p) => Ok(p),
+    Err(e) if token.is_some() => {
+      crate::log_line(&format!("门户授权已失效（{e}），重新申请"));
+      let _ = std::fs::remove_file(token_path());
+      futures_lite::future::block_on(connect_portal(None))
+    }
+    Err(e) => Err(e),
+  };
+  match result {
+    Ok(p) => {
+      *guard = Some(p);
+      *NEXT_PORTAL_TRY.lock().unwrap() = None;
+      Ok(())
+    }
+    Err(e) => {
+      *NEXT_PORTAL_TRY.lock().unwrap() =
+        Some(std::time::Instant::now() + std::time::Duration::from_secs(30));
+      Err(e)
+    }
+  }
 }
 
 /// 上屏快捷键：主热键 → Ctrl+V（图形界面）；终端热键 → Ctrl+Shift+V（终端/TUI）。
@@ -200,48 +250,54 @@ fn paste_combo_name(keys: &[i32]) -> &'static str {
 fn portal_paste(mode: PasteMode) -> Result<(), String> {
   let keys = paste_keys(mode);
   let cell = PORTAL.get_or_init(|| Mutex::new(None));
-  let guard = cell.lock().map_err(|_| "门户状态锁已损坏".to_string())?;
-  let Some(p) = guard.as_ref() else {
-    return Err("门户未连接".into());
+  let mut guard = cell.lock().map_err(|_| "门户状态锁已损坏".to_string())?;
+  let result = {
+    let Some(p) = guard.as_ref() else {
+      return Err("门户未连接".into());
+    };
+    futures_lite::future::block_on(async {
+      for &code in &keys {
+        p.rd
+          .notify_keyboard_keycode(&p.session, code, KeyState::Pressed, Default::default())
+          .await
+          .map_err(|e| format!("{e}"))?;
+        async_io::Timer::after(Duration::from_millis(12)).await;
+      }
+      for &code in keys.iter().rev() {
+        p.rd
+          .notify_keyboard_keycode(&p.session, code, KeyState::Released, Default::default())
+          .await
+          .map_err(|e| format!("{e}"))?;
+        async_io::Timer::after(Duration::from_millis(12)).await;
+      }
+      Ok(())
+    })
   };
-  futures_lite::future::block_on(async {
-    for &code in &keys {
-      p.rd
-        .notify_keyboard_keycode(
-          &p.session,
-          code,
-          KeyState::Pressed,
-          Default::default(),
-        )
-        .await
-        .map_err(|e| format!("{e}"))?;
-      async_io::Timer::after(Duration::from_millis(12)).await;
-    }
-    for &code in keys.iter().rev() {
-      p.rd
-        .notify_keyboard_keycode(
-          &p.session,
-          code,
-          KeyState::Released,
-          Default::default(),
-        )
-        .await
-        .map_err(|e| format!("{e}"))?;
-      async_io::Timer::after(Duration::from_millis(12)).await;
-    }
-    Ok(())
-  })
+  if result.is_err() {
+    // 会话被撤回/失效：丢掉连接和 token，下次上屏会重新弹授权
+    *guard = None;
+    let _ = std::fs::remove_file(token_path());
+  }
+  result
 }
 
-async fn connect_portal() -> Result<PortalText, String> {
+fn token_path() -> std::path::PathBuf {
+  crate::config::user_dir().join("portal_restore_token")
+}
+
+async fn connect_portal(token: Option<&str>) -> Result<PortalText, String> {
   let rd = RemoteDesktop::new().await.map_err(|e| format!("{e}"))?;
   let session = rd
     .create_session(Default::default())
     .await
     .map_err(|e| format!("创建会话失败：{e}"))?;
+  // 持久化授权：把上次的 restore token 带上，GNOME 就不再每次弹「共享」对话框
   rd.select_devices(
     &session,
-    SelectDevicesOptions::default().set_devices(BitFlags::from_flag(DeviceType::Keyboard)),
+    SelectDevicesOptions::default()
+      .set_devices(BitFlags::from_flag(DeviceType::Keyboard))
+      .set_persist_mode(PersistMode::ExplicitlyRevoked)
+      .set_restore_token(token),
   )
   .await
   .map_err(|e| format!("选择键盘设备失败：{e}"))?;
@@ -252,6 +308,10 @@ async fn connect_portal() -> Result<PortalText, String> {
   let devices = start.response().map_err(|e| format!("授权结果无效：{e}"))?;
   if !devices.devices().contains(DeviceType::Keyboard) {
     return Err("用户未授权键盘控制".into());
+  }
+  if let Some(t) = devices.restore_token() {
+    let _ = std::fs::write(token_path(), t);
+    crate::log_line("RemoteDesktop 授权已记住（restore token）");
   }
   crate::log_line("RemoteDesktop 键盘注入已授权（仅用于粘贴快捷键）");
   Ok(PortalText { rd, session })

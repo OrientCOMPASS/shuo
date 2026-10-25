@@ -1,0 +1,590 @@
+# ============================================================================
+# 说 · Shuo —「单模型直出」微调产线（全部仅手动触发，push 不消耗 runner；
+# 产品回归在 ci.yml）。方法论移植自 Qwen3-subtitle-assistant 的 finetune.yml
+# （cpu-smoke / real-mini / gpu-train 全链路已在该仓库 CI 实测跑通）。
+#
+# 模式：
+#   cpu-smoke    （GitHub 托管 runner）4 条样本 + 2 步 LoRA + stub 伪优化，
+#                只验证管线可跑通（数据格式 / prefix-target 切分 / 训练回路 /
+#                适配器保存与挂载 / 评测脚本）。stub 数据下质量指标不达标是预期。
+#   real-mini    CPU 真实微调（--optimizer table，固定对照表，无需 API key）；
+#                三项判定全强制：任务生效 / 未遗忘 / 静音双模式为空。
+#   gpu-train    真实放量训练（需 self-hosted + gpu runner；--optimizer api，
+#                system 消息 = 任务提示词原文，与推理端逐字一致）。
+#   onnx-inspect Gate 1 探针：Daumee int8 包张量地图 + 适配器值匹配 go/no-go。
+#   onnx-patch   Gate 2 补丁：LoRA ΔW 写回 Daumee 包 → unified 目录 +
+#                verify_unified_onnx 在 onnxruntime 上复测（量化后行为必须复验）。
+#   ort-e2e      Gate 3 产品运行时：真实 Daumee 包 + cargo test（Rust ort 管线
+#                带 context 的转写冒烟，与 src-tauri/src/asr.rs 单测同一入口）。
+# ============================================================================
+name: finetune-experiment
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "运行模式"
+        type: choice
+        default: "cpu-smoke"
+        options: [cpu-smoke, real-mini, gpu-train, onnx-inspect, onnx-patch, ort-e2e]
+      model:
+        description: "基座模型"
+        type: choice
+        default: "Qwen/Qwen3-ASR-0.6B"
+        options: [Qwen/Qwen3-ASR-0.6B, Qwen/Qwen3-ASR-1.7B]
+      samples:
+        description: "训练样本数（gpu-train 建议 >= 2000）"
+        type: string
+        default: "4"
+      steps:
+        description: "最大训练步数（-1 = 按 epochs 走完）"
+        type: string
+        default: "2"
+      tasks:
+        description: "训练任务集（逗号分隔，见 finetune/prompts.py）"
+        type: string
+        default: "polish_zh,translate_en"
+      adapter_run:
+        description: "onnx-inspect/onnx-patch 用：适配器 artifact 所在 run id"
+        type: string
+        default: ""
+      adapter_artifact:
+        description: "适配器 artifact 名（cpu-smoke 产物=unified-cpu-smoke；real-mini=unified-real-mini）"
+        type: string
+        default: "unified-cpu-smoke"
+
+permissions:
+  contents: read
+  actions: read   # 跨 run 下载适配器 artifact 需要
+
+concurrency:
+  group: finetune-${{ inputs.mode }}
+  cancel-in-progress: false
+
+env:
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: utf-8
+  HF_HUB_DISABLE_PROGRESS_BARS: "1"
+  TOKENIZERS_PARALLELISM: "false"
+  MODEL_TAG: ${{ inputs.model == 'Qwen/Qwen3-ASR-1.7B' && '1.7B' || '0.6B' }}
+  DAUMEE_REPO: Daumee/Qwen3-ASR-0.6B-ONNX-CPU
+  DAUMEE_DIR: models/Qwen3-ASR-0.6B-ONNX-CPU
+
+jobs:
+  # ---------------------------------------------------------------- cpu-smoke
+  cpu-smoke:
+    name: CPU 管线冒烟（非质量验证）
+    if: ${{ inputs.mode == 'cpu-smoke' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Cache HuggingFace 模型（0.6B 约 1.8GB）
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-qwen3-asr-${{ env.MODEL_TAG }}-v1
+
+      - name: 安装依赖（CPU 版 torch + qwen-asr + peft）
+        run: |
+          set -e
+          python -m pip install --quiet --upgrade pip
+          pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu
+          # qwen-asr 会锁定 transformers==4.57.6 / accelerate==1.12.0
+          pip install --quiet qwen-asr peft datasets soundfile librosa
+          python -c "import importlib.metadata as md, torch, transformers, peft, qwen_asr; \
+            print('torch', torch.__version__, '| transformers', transformers.__version__, \
+                  '| peft', peft.__version__, '| qwen-asr', md.version('qwen-asr')); \
+            print('Qwen3ASRModel:', qwen_asr.Qwen3ASRModel)"
+
+      - name: 构造数据（FLEURS zh_cn + stub 伪优化 + 静音样本）
+        run: |
+          python finetune/prepare_data.py \
+            --source fleurs --fleurs-lang zh_cn --limit 4 --eval-limit 2 \
+            --max-audio-secs 12 --optimizer stub --tasks "${{ inputs.tasks }}" \
+            --asr-ratio 0.4 --silence-samples 2 \
+            --audio-dir data/audio --out data/train.jsonl --eval-out data/eval.jsonl \
+            --dump-transcripts data/transcripts.txt
+          echo "--- train.jsonl 首行（audio 路径截断）---"
+          python -c "import json;l=open('data/train.jsonl',encoding='utf-8').readline();d=json.loads(l);d['audio']='...'+d['audio'][-24:];print(json.dumps(d,ensure_ascii=False,indent=2))"
+          wc -l data/train.jsonl data/eval.jsonl
+
+      - name: LoRA 微调 2 步（CPU）
+        run: |
+          python finetune/sft_lora.py \
+            --model "${{ inputs.model }}" --train data/train.jsonl --eval data/eval.jsonl \
+            --out out/smoke --device cpu --lora --lora-r 8 \
+            --max-samples 4 --max-steps 2 --batch-size 1 --grad-acc 1 --lr 2e-4 --log-steps 1
+
+      - name: 评测（CPU；stub 数据下质量指标不达标属预期）
+        run: |
+          python finetune/eval_unified.py \
+            --model "${{ inputs.model }}" --adapter out/smoke/lora \
+            --eval data/eval.jsonl --limit 2 --device cpu --silence-secs 2 \
+            --source-script cjk --out out/smoke/eval_report.json
+
+      - name: 管线冒烟判定
+        run: |
+          python - <<'PY'
+          import json, math, pathlib
+          rep = json.loads(pathlib.Path('out/smoke/train_report.json').read_text(encoding='utf-8'))
+          ev = json.loads(pathlib.Path('out/smoke/eval_report.json').read_text(encoding='utf-8'))
+          fails = []
+          loss = rep.get('final_loss')
+          if not isinstance(loss, float) or not math.isfinite(loss) or loss <= 0:
+              fails.append(f'final_loss 异常: {loss!r}')
+          if rep.get('train_samples', 0) < 1:
+              fails.append('训练样本数为 0')
+          if rep.get('trainable_params_m', 0) <= 0:
+              fails.append('LoRA 可训练参数为 0（适配器没挂上）')
+          if not ev.get('samples'):
+              fails.append('评测没有任何输出样本')
+          sil = ev.get('silence') or {}
+          sil_errs = [f"{k}: {v['error']}" for k, v in sil.items()
+                      if isinstance(v, dict) and v.get('error')]
+          if sil_errs:
+              fails.append(f"静音推理报错: {sil_errs}")
+          # 输出必须保持 `language X<asr_text>` 可解析形态（raw 里带标签）
+          for task, items in (ev.get('samples') or {}).items():
+              for s in items:
+                  if s.get('out') is None:
+                      fails.append(f'{task}: 输出缺失')
+          print('=== 管线冒烟结论 ===')
+          print(f"  final_loss        = {loss}")
+          print(f"  可训练参数(M)     = {rep.get('trainable_params_m')}")
+          print(f"  训练耗时(s)       = {rep.get('train_seconds')}")
+          print(f"  指标              = {json.dumps(ev.get('metrics'), ensure_ascii=False)}")
+          print(f"  静音输出          = {json.dumps(sil, ensure_ascii=False)[:400]}")
+          print('注意：本轮用 stub 伪优化 + CPU + 2 步，质量指标不达标是预期行为，')
+          print('      本判定只检查"管线是否跑通"。质量验证请用 real-mini / gpu-train。')
+          if fails:
+              print('失败项:', fails)
+              raise SystemExit(1)
+          print('✔ 数据格式 / prefix-target 切分 / 训练回路 / 适配器保存与挂载 / 评测脚本 全部跑通')
+          PY
+
+      - name: 上传实验产物（含适配器，供 onnx-inspect/onnx-patch 复用）
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unified-cpu-smoke
+          path: |
+            out/smoke/lora
+            out/smoke/train_report.json
+            out/smoke/eval_report.json
+            data/train.jsonl
+            data/eval.jsonl
+            data/transcripts.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ---------------------------------------------------------------- real-mini
+  real-mini:
+    name: CPU 真实微调（固定对照表，无需 API key）
+    if: ${{ inputs.mode == 'real-mini' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 420
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Cache HuggingFace 模型
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-qwen3-asr-${{ env.MODEL_TAG }}-v1
+
+      - name: 安装依赖
+        run: |
+          set -e
+          pip install --quiet --upgrade pip
+          pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet qwen-asr peft datasets soundfile librosa
+
+      - name: 检查对照表
+        run: |
+          if [ ! -f finetune/table_zh.tsv ]; then
+            echo "::error::缺少 finetune/table_zh.tsv（task<TAB>源转写<TAB>目标文本 三列 TSV）。"
+            echo "先跑一次 cpu-smoke，从 artifact 里取 data/transcripts.txt，"
+            echo "离线整理成对照表提交进仓库，再触发本模式（qsa real-mini 同款流程）。"
+            exit 1
+          fi
+          echo "对照表行数: $(grep -cv '^#' finetune/table_zh.tsv)"
+          head -3 finetune/table_zh.tsv
+
+      - name: 构造数据（table 优化后端 + 静音样本）
+        run: |
+          python finetune/prepare_data.py \
+            --source fleurs --fleurs-lang zh_cn --limit 100 --eval-limit 20 --max-audio-secs 15 \
+            --optimizer table --table finetune/table_zh.tsv --skip-unoptimized \
+            --tasks "${{ inputs.tasks }}" --asr-ratio 0.35 --silence-samples 20 \
+            --audio-dir data/audio --out data/train.jsonl --eval-out data/eval.jsonl
+          echo "训练集 $(wc -l < data/train.jsonl) 条 / 评测集 $(wc -l < data/eval.jsonl) 条"
+          python - <<'PY'
+          import json, pathlib
+          rows = [json.loads(l) for l in pathlib.Path('data/train.jsonl').read_text(encoding='utf-8').splitlines() if l.strip()]
+          sil  = [r for r in rows if r['task'] == 'silence']
+          real = [r for r in rows if r['task'] != 'silence']
+          mt   = [r for r in real if r['prompt']]
+          asr  = [r for r in real if not r['prompt']]
+          print(f'  任务 {len(mt)} 条 / verbatim {len(asr)} 条 / 静音 {len(sil)} 条')
+          for r in mt[:3]:
+              print('   例:', r['task'], r['text'][:60])
+          if not mt:
+              raise SystemExit('没有任务样本（对照表全部未命中？）')
+          if not sil:
+              raise SystemExit('没有静音样本（--silence-samples 未生效？）')
+          PY
+
+      - name: LoRA 微调（CPU）
+        run: |
+          python finetune/sft_lora.py \
+            --model "${{ inputs.model }}" --train data/train.jsonl --eval data/eval.jsonl \
+            --out out/real --device cpu --lora --lora-r 32 --lora-alpha 64 \
+            --epochs 4 --max-steps -1 --batch-size 1 --grad-acc 2 \
+            --lr 3e-4 --log-steps 10
+
+      - name: 评测（任务生效 / 未遗忘 / 静音行为）
+        run: |
+          python finetune/eval_unified.py \
+            --model "${{ inputs.model }}" --adapter out/real/lora \
+            --eval data/eval.jsonl --limit 20 --device cpu --silence-secs 2 \
+            --source-script cjk --out out/real/eval_report.json
+
+      - name: 基座模型静音诊断（归因用，不挂适配器）
+        run: |
+          python finetune/eval_unified.py \
+            --model "${{ inputs.model }}" --silence-only \
+            --device cpu --silence-secs 2 --out out/real/base_silence.json
+
+      - name: 判定（三项强制，qsa real-mini 同款口径）
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          ev = json.loads(pathlib.Path('out/real/eval_report.json').read_text(encoding='utf-8'))
+          tr = json.loads(pathlib.Path('out/real/train_report.json').read_text(encoding='utf-8'))
+          bp = pathlib.Path('out/real/base_silence.json')
+          base = json.loads(bp.read_text(encoding='utf-8')) if bp.is_file() else None
+          m, c = ev['metrics'], ev['checks']
+          print('=== 真实微调结论 ===')
+          print(f"  训练样本 {tr['train_samples']} 条 / loss {tr['final_loss']:.4f} / {tr['train_seconds']:.0f}s")
+          for k in sorted(m):
+              print(f"  {k} = {m[k]}")
+          if base is not None:
+              print(f"  静音输出（基座） = {json.dumps(base.get('silence'), ensure_ascii=False)[:300]}")
+          for task, items in ev['samples'].items():
+              for s in items[:2]:
+                  print(f"    [{task}] {s['out'][:60]}")
+          for k, v in c.items():
+              print(f"  {'✔' if v else '✘'} {k}")
+          fails = []
+          task_checks = {k: v for k, v in c.items() if k.startswith('task_takes_effect')}
+          if task_checks and not all(task_checks.values()):
+              bad = [k for k, v in task_checks.items() if not v]
+              fails.append(f'任务未生效: {bad}。需要更多样本/步数/更大 LoRA 秩，或改 GPU 放量。')
+          if c.get('no_catastrophic_forgetting') is False:
+              fails.append('灾难性遗忘：verbatim 输出与参考相似度过低或整条泄漏。提高 --asr-ratio 或减少步数。')
+          base_ok = bool(base and base.get('checks', {}).get('silence_is_empty'))
+          if c.get('silence_is_empty') is False:
+              if base_ok:
+                  fails.append('静音行为被训坏（基座为空、挂适配器后非空）：增大 --silence-samples、降 lr 或减 epoch。')
+              else:
+                  print('⚠ 基座在 transformers 路径下对纯数字静音也非空——静音异常不归因于本次微调，仅警示。')
+          if fails:
+              for f in fails:
+                  print('✘', f)
+              raise SystemExit(1)
+          print('✔ 判定通过——任务开关成立 / 未遗忘 / 静音行为保留（或与基座一致）')
+          PY
+
+      - name: 上传适配器与报告
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unified-real-mini
+          path: |
+            out/real/lora
+            out/real/train_report.json
+            out/real/eval_report.json
+            out/real/base_silence.json
+            data/train.jsonl
+            data/eval.jsonl
+          if-no-files-found: warn
+          retention-days: 60
+
+  # ---------------------------------------------------------------- gpu-train
+  gpu-train:
+    name: GPU 真实训练（需 self-hosted + gpu runner）
+    if: ${{ inputs.mode == 'gpu-train' }}
+    runs-on: [self-hosted, gpu]
+    timeout-minutes: 720
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: |
+          set -e
+          pip install --quiet --upgrade pip
+          pip install --quiet qwen-asr peft datasets soundfile librosa
+          MAX_JOBS=4 pip install -U flash-attn --no-build-isolation || echo "flash-attn 安装失败，继续"
+          python -c "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available())"
+
+      - name: 构造数据（FLEURS zh_cn + API 优化后端，system=任务提示词原文）
+        env:
+          SHUO_OPT_API_KEY: ${{ secrets.SHUO_OPT_API_KEY }}
+        run: |
+          python finetune/prepare_data.py \
+            --source fleurs --fleurs-lang zh_cn --limit ${{ inputs.samples }} --eval-limit 40 \
+            --max-audio-secs 20 --optimizer api --tasks "${{ inputs.tasks }}" \
+            --api-base "${{ vars.SHUO_OPT_API_BASE }}" --api-model "${{ vars.SHUO_OPT_API_MODEL }}" \
+            --api-key-env SHUO_OPT_API_KEY --asr-ratio 0.4 --silence-samples 200 \
+            --audio-dir data/audio --out data/train.jsonl --eval-out data/eval.jsonl
+          wc -l data/train.jsonl data/eval.jsonl
+
+      - name: LoRA 微调
+        run: |
+          python finetune/sft_lora.py \
+            --model "${{ inputs.model }}" --train data/train.jsonl --eval data/eval.jsonl \
+            --out out/unified --lora --lora-r 16 --lora-alpha 32 \
+            --epochs 1 --max-steps ${{ inputs.steps }} --batch-size 4 --grad-acc 4 \
+            --lr 2e-4 --warmup-steps 50 --log-steps 10 --save-steps 200 --grad-ckpt
+
+      - name: 评测
+        run: |
+          python finetune/eval_unified.py \
+            --model "${{ inputs.model }}" --adapter out/unified/lora \
+            --eval data/eval.jsonl --limit 40 --silence-secs 2 \
+            --source-script cjk --out out/unified/eval_report.json
+
+      - name: 上传适配器与报告
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unified-lora-adapter
+          path: |
+            out/unified/lora
+            out/unified/train_report.json
+            out/unified/eval_report.json
+          if-no-files-found: warn
+          retention-days: 90
+
+  # ------------------------------------------------------------- onnx-inspect
+  onnx-inspect:
+    name: Gate 1 探针（Daumee int8 包张量地图 + 值匹配 go/no-go）
+    if: ${{ inputs.mode == 'onnx-inspect' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Cache Daumee ONNX 包（约 2.5GB）
+        uses: actions/cache@v4
+        with:
+          path: models
+          key: daumee-qwen3-asr-0.6b-onnx-v1
+
+      - name: Cache HuggingFace 基座
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-qwen3-asr-${{ env.MODEL_TAG }}-v1
+
+      - name: 下载 Daumee 包（缓存命中则跳过实际下载）
+        run: |
+          set -e
+          pip install --quiet huggingface_hub
+          python - <<'PY'
+          import os
+          from huggingface_hub import snapshot_download
+          p = snapshot_download(os.environ["DAUMEE_REPO"], local_dir=os.environ["DAUMEE_DIR"])
+          print("模型目录:", p)
+          PY
+          ls -la "$DAUMEE_DIR" "$DAUMEE_DIR/onnx_models" | head -30
+
+      - name: 下载 LoRA 适配器 artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.adapter_artifact }}
+          run-id: ${{ inputs.adapter_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: art
+
+      - name: 安装依赖
+        run: pip install --quiet onnx numpy safetensors huggingface_hub
+
+      - name: 跑 Gate 1 探针
+        run: |
+          set -e
+          ADAPTER=art/out/smoke/lora
+          [ -d "$ADAPTER" ] || ADAPTER=art/out/real/lora
+          [ -d "$ADAPTER" ] || { echo "::error::artifact 里找不到适配器（out/smoke/lora 或 out/real/lora）"; exit 1; }
+          echo "适配器: $ADAPTER"
+          python finetune/inspect_onnx_lora.py \
+            --model-dir "$DAUMEE_DIR" \
+            --hf-model "${{ inputs.model }}" --adapter "$ADAPTER" \
+            --out out/inspect/onnx_patch_report.json
+
+      - name: 上传探针报告
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unified-onnx-inspect
+          path: out/inspect/onnx_patch_report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  # --------------------------------------------------------------- onnx-patch
+  onnx-patch:
+    name: Gate 2 补丁（LoRA→Daumee int8 包→unified 目录 + ORT 行为复测）
+    if: ${{ inputs.mode == 'onnx-patch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Cache Daumee ONNX 包
+        uses: actions/cache@v4
+        with:
+          path: models
+          key: daumee-qwen3-asr-0.6b-onnx-v1
+
+      - name: Cache HuggingFace 基座
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-qwen3-asr-${{ env.MODEL_TAG }}-v1
+
+      - name: 下载 Daumee 包
+        run: |
+          set -e
+          pip install --quiet huggingface_hub
+          python -c "import os; from huggingface_hub import snapshot_download; snapshot_download(os.environ['DAUMEE_REPO'], local_dir=os.environ['DAUMEE_DIR'])"
+
+      - name: 下载 LoRA 适配器 artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.adapter_artifact }}
+          run-id: ${{ inputs.adapter_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: art
+
+      - name: 安装依赖（补丁 + ORT 验证）
+        run: pip install --quiet onnx numpy safetensors huggingface_hub onnxruntime tokenizers librosa soundfile
+
+      - name: 跑补丁器（cpu-smoke 适配器=管线验证；real-mini 适配器=行为验证）
+        run: |
+          set -e
+          ADAPTER=art/out/smoke/lora
+          [ -d "$ADAPTER" ] || ADAPTER=art/out/real/lora
+          echo "适配器: $ADAPTER"
+          python finetune/patch_onnx_lora.py \
+            --model-dir "$DAUMEE_DIR" \
+            --hf-model "${{ inputs.model }}" --adapter "$ADAPTER" \
+            --out-dir models/Qwen3-ASR-0.6B-ONNX-CPU-unified \
+            --report out/patch/patch_report.json
+          ls -la models/Qwen3-ASR-0.6B-ONNX-CPU-unified models/Qwen3-ASR-0.6B-ONNX-CPU-unified/onnx_models
+          test -f models/Qwen3-ASR-0.6B-ONNX-CPU-unified/unified.json
+          python -c "import json; d=json.load(open('models/Qwen3-ASR-0.6B-ONNX-CPU-unified/unified.json',encoding='utf-8')); print(json.dumps({k:d[k] for k in ('kind','patched_modules','lora')}, ensure_ascii=False))"
+
+      - name: ORT 行为复测（smoke 适配器只断言管线/格式，不断言质量）
+        run: |
+          set -e
+          python finetune/verify_unified_onnx.py \
+            --model-dir models/Qwen3-ASR-0.6B-ONNX-CPU-unified \
+            --audio "$DAUMEE_DIR/test_audio/librispeech_1_1089_1.wav" \
+            --check-set smoke --expect-task translate_en --silence-secs 2 \
+            --threads 4 --report out/patch/verify_report.json
+
+      - name: 补丁前后对照（原始包也必须仍可推理——补丁不破坏基线）
+        run: |
+          python finetune/verify_unified_onnx.py \
+            --model-dir "$DAUMEE_DIR" \
+            --audio "$DAUMEE_DIR/test_audio/librispeech_1_1089_1.wav" \
+            --check-set base --expect-task translate_en --silence-secs 0 \
+            --threads 4 --report out/patch/verify_base_report.json
+
+      - name: 上传报告
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unified-onnx-patch
+          path: |
+            out/patch/patch_report.json
+            out/patch/verify_report.json
+            out/patch/verify_base_report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ------------------------------------------------------------------ ort-e2e
+  ort-e2e:
+    name: Gate 3 产品运行时（真实 Daumee 包 + Rust ort 管线 cargo test）
+    if: ${{ inputs.mode == 'ort-e2e' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: 系统依赖（与 ci.yml rust-linux 同套）
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libssl-dev libxdo-dev librsvg2-dev \
+            libgtk-3-dev libasound2-dev libsoup-3.0-dev pkg-config file
+
+      - name: Cache Daumee ONNX 包
+        uses: actions/cache@v4
+        with:
+          path: models
+          key: daumee-qwen3-asr-0.6b-onnx-v1
+
+      - name: 下载 Daumee 包
+        run: |
+          set -e
+          pip install --quiet huggingface_hub
+          python -c "import os; from huggingface_hub import snapshot_download; snapshot_download(os.environ['DAUMEE_REPO'], local_dir=os.environ['DAUMEE_DIR'])"
+          ls "$DAUMEE_DIR/test_audio"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: 真实模型 cargo test（asr 模块：参考 wav 转写 + context 冒烟）
+        working-directory: src-tauri
+        run: |
+          export SHUO_ASR_DIR="$GITHUB_WORKSPACE/$DAUMEE_DIR"
+          cargo test --release asr:: -- --nocapture --test-threads 1
+
+      - name: Python 参照管线对照（同一 wav，空 context 转写一致性）
+        run: |
+          set -e
+          pip install --quiet onnxruntime tokenizers librosa numpy
+          python finetune/verify_unified_onnx.py \
+            --model-dir "$DAUMEE_DIR" \
+            --audio "$DAUMEE_DIR/test_audio/librispeech_0_1089_0.wav" \
+            --check-set base --silence-secs 0 --threads 4 \
+            --report out/orte2e/base_report.json
+          python -c "import json; r=json.load(open('out/orte2e/base_report.json',encoding='utf-8')); t=r['results'][0]['verbatim']['text']; print('TEXT:', t); assert len(t) > 20, '转写太短'"

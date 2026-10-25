@@ -1,0 +1,211 @@
+# ============================================================================
+# 说 · Shuo — 持续集成（push / PR 必跑，全绿才合并）
+#
+# 三个 job：
+#   rust-linux    WebKitGTK 等系统依赖 + cargo test --release（mel/llm/asr 单测；
+#                 模型类测试在 SHUO_ASR_DIR/仓库模型目录缺失时自动跳过——真实
+#                 模型 e2e 在 finetune.yml mode=ort-e2e 手动跑，不阻塞 push）
+#   rust-windows  cargo test（debug profile：release 下 windows_subsystem="windows"
+#                 的测试二进制没有控制台，debug 保证测试输出/判定正常）
+#   py-ui         finetune/ 脚本语法与纯逻辑校验（不装 torch）：py_compile、
+#                 提示词对表（prompts.py ↔ asr.rs 逐字一致）、stub 优化器/静音
+#                 样本/对照表后端单测、ui/app.js 语法（node --check）、
+#                 locales JSON 可解析。
+#
+# 打包发版在 release.yml（tag 触发）；微调/补丁/真实模型验证在 finetune.yml
+# （手动触发，push 不消耗 runner）。
+# ============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: utf-8
+
+jobs:
+  # ------------------------------------------------------------------ Linux
+  rust-linux:
+    name: Rust 构建+单测 (ubuntu)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 系统依赖（WebKitGTK 4.1 / ALSA，与 release.yml 同套）
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libssl-dev libxdo-dev librsvg2-dev \
+            libgtk-3-dev libasound2-dev libsoup-3.0-dev \
+            pkg-config file
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: 缓存 cargo 依赖与 target
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: rust-linux-${{ hashFiles('src-tauri/Cargo.lock') }}-${{ github.sha }}
+          restore-keys: |
+            rust-linux-${{ hashFiles('src-tauri/Cargo.lock') }}-
+
+      - name: 单元测试（release；模型缺失的用例自动跳过）
+        working-directory: src-tauri
+        run: cargo test --release
+
+      - name: 构建主程序（release 链接验证）
+        working-directory: src-tauri
+        run: cargo build --release
+
+  # ---------------------------------------------------------------- Windows
+  rust-windows:
+    name: Rust 构建+单测 (windows)
+    runs-on: windows-latest
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: 缓存 cargo 依赖
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: rust-win-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: rust-win-cargo-
+
+      # debug profile：release 的测试二进制是 GUI 子系统（无控制台），
+      # debug 下 cfg(debug_assertions) 生效、测试输出与判定都正常。
+      - name: 单元测试
+        working-directory: src-tauri
+        run: cargo test
+
+  # ------------------------------------------------------ finetune 脚本 + UI
+  py-ui:
+    name: finetune 脚本校验 + UI 语法
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: 轻量依赖（无 torch：numpy/soundfile 供纯逻辑单测）
+        run: pip install --quiet numpy soundfile
+
+      - name: 语法编译全部 finetune 脚本
+        run: |
+          set -e
+          for f in finetune/*.py; do python -m py_compile "$f"; done
+          echo "PY_COMPILE_OK"
+
+      - name: 提示词对表（prompts.py ↔ src-tauri/src/asr.rs 逐字一致）
+        run: python finetune/check_prompt_sync.py
+
+      - name: 纯逻辑单测（stub 优化器 / 静音样本 / 对照表 / 评测函数）
+        run: |
+          set -e
+          python - <<'PY'
+          import json, sys, tempfile
+          from pathlib import Path
+          sys.path.insert(0, "finetune")
+
+          # --- prepare_data: stub 优化器确定性 + 任务形态 ---
+          from prepare_data import StubOptimizer, TableOptimizer, make_silence_samples
+          from prompts import PRESETS, SILENCE_TAG
+
+          opt = StubOptimizer()
+          a = opt("polish_zh", "嗯那个我觉得这个方案好像不太行")
+          b = opt("polish_zh", "嗯那个我觉得这个方案好像不太行")
+          assert a == b, "stub 必须确定性"
+          assert "嗯" not in a and a.endswith("。"), f"polish_zh stub 形态异常: {a!r}"
+          en = opt("translate_en", "测试")
+          assert en and all(ord(c) < 128 for c in en), f"translate_en stub 应为拉丁: {en!r}"
+          zh = opt("translate_zh", "test")
+          assert any('\u4e00' <= c <= '\u9fff' for c in zh), f"translate_zh stub 应含汉字: {zh!r}"
+
+          # --- 静音样本：前 4 条 2.0s，覆盖 零/噪 × 带/不带 prompt ---
+          with tempfile.TemporaryDirectory() as td:
+              lines = make_silence_samples(Path(td), 6, [PRESETS["translate_en"], PRESETS["polish_zh"]], 1.0, 3.0, 42)
+              assert len(lines) == 6
+              recs = [json.loads(l) for l in lines]
+              assert all(r["text"] == SILENCE_TAG for r in recs), "静音目标必须是 language None<asr_text>"
+              prompts4 = [r["prompt"] for r in recs[:4]]
+              assert prompts4[0] and prompts4[1] and not prompts4[2] and not prompts4[3], \
+                  f"前 4 条应覆盖 带/不带 prompt: {prompts4}"
+              import wave
+              w0 = wave.open(str(Path(td) / "silence_000.wav"))
+              assert abs(w0.getnframes() / w0.getframerate() - 2.0) < 0.01, "前 4 条固定 2.0s"
+
+          # --- 对照表后端：精确 + 句末标点模糊匹配 + 未命中 KeyError ---
+          with tempfile.TemporaryDirectory() as td:
+              p = Path(td) / "t.tsv"
+              p.write_text("# comment\npolish_zh\t今天天气不错。\t今天天气不错。\ntranslate_en\t今天天气不错。\tThe weather is nice today.\n", encoding="utf-8")
+              t = TableOptimizer(p)
+              assert t("translate_en", "今天天气不错。") == "The weather is nice today."
+              assert t("polish_zh", "今天天气不错") == "今天天气不错。"  # 模糊匹配
+              try:
+                  t("polish_zh", "没见过的句子")
+                  raise AssertionError("未命中应抛 KeyError")
+              except KeyError:
+                  pass
+
+          # --- eval_unified: 脚本占比/相似度函数 ---
+          from eval_unified import script_profile, sim
+          sp = script_profile("你好world")
+          assert sp["cjk"] == 0.5 and sp["latin"] == 0.5, sp
+          assert sim("abc", "abc") == 1.0 and sim("abc", "xyz") == 0.0
+
+          print("PURE_LOGIC_OK")
+          PY
+
+      - name: patch/inspect 干跑参数校验（--help 可执行，不装 onnx 不下载模型）
+        run: |
+          python finetune/patch_onnx_lora.py --help > /dev/null 2>&1 || \
+            python - <<'PY'
+          # onnx/numpy 未装时 --help 会在 import 前退出（argparse 在 import numpy 之前）
+          import subprocess, sys
+          r = subprocess.run([sys.executable, "finetune/patch_onnx_lora.py", "--help"],
+                             capture_output=True, text=True)
+          sys.exit(0 if r.returncode == 0 else 1)
+          PY
+
+      - name: UI 语法（app.js / locales JSON / index.html 新控件存在）
+        run: |
+          set -e
+          node --check src-tauri/ui/app.js
+          for f in src-tauri/ui/locales/*.json; do python -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$f"; done
+          grep -q 'id="chk-single"' src-tauri/ui/index.html
+          grep -q 'id="sel-single-preset"' src-tauri/ui/index.html
+          grep -q 'id="chip-single"' src-tauri/ui/index.html
+          grep -q 'list_asr_presets' src-tauri/ui/app.js
+          echo "UI_OK"

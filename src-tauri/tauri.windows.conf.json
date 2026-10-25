@@ -2,8 +2,7 @@
   "bundle": {
     "targets": ["nsis"],
     "resources": {
-      "resources/denoise.onnx": "denoise.onnx",
-      "target/release/onnxruntime.dll": "onnxruntime.dll"
+      "resources/denoise.onnx": "denoise.onnx"
     },
     "windows": {
       "nsis": {

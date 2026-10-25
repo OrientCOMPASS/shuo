@@ -14,6 +14,7 @@ Two implementations share the same `~/.shuo/` (config.json / history.json / shuo
 | Run Tauri | `cd src-tauri && cargo run --release` |
 | Build Tauri (Linux) | `cd src-tauri && cargo tauri build --bundles deb appimage` |
 | 发版（日期版本） | `./scripts/release.sh`（版本 = `YY.MM.DD`，tag `vYY.MM.DD`；同日重复加 `-2`）|
+| 版本注入（CI） | `bash ./scripts/set-version.sh <版本>`（只由 CI 从 tag 调用；仓库里不提交版本改动）|
 | Build Tauri (Windows) | `powershell -ExecutionPolicy Bypass -File src-tauri\build.ps1` |
 | Rust tests | `cd src-tauri && cargo test --release` (LLM e2e: `-- --ignored llm_end_to_end`) |
 | Run Python (legacy) | `cd legacy/2026-10-25-python && PYTHONPATH=../.. python asr_gui.py` |

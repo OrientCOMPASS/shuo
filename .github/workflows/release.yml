@@ -1,16 +1,25 @@
 # 说 · Shuo — 打包 / 发版
 #
-# 触发：推 tag `v*`（例如 `git tag v26.10.25 && git push origin v26.10.25`），
-#       或手动 `workflow_dispatch`（只构建，不建 release）。
+# 触发：推 tag `v*`（例如 `git tag v26.10.25 && git push origin v26.10.25`，
+#       或直接跑 `./scripts/release.sh`），或手动 `workflow_dispatch`（只构建，不建 release）。
+#
+# 版本号的唯一来源是 tag：第一个 job 把 tag 解析成 `version` 输出，
+# 后面每个 job 都通过 needs 拿到它，再交给 scripts/set-version.sh 写进构建配置。
+# 仓库里的版本字段只是本地开发占位，发版时不要在本地改、也不要提交。
 #
 # 不做缓存：每次都是干净构建，省心、结果可复现。
-# 产物：Windows NSIS 安装包 / Linux deb + AppImage，统一挂到同一个 release。
+# 产物：Windows NSIS / Linux deb + AppImage，统一挂到同一个 release（不带 zip）。
 name: 打包发版
 
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号（留空则用当天日期 YY.MM.DD）"
+        required: false
+        default: ""
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,10 +28,40 @@ env:
   TAURI_CLI_VERSION: "3.0.0-alpha.5"
 
 jobs:
+  # ------------------------------------------------------------- 版本号
+  version:
+    name: 版本号（tag → version）
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          elif [[ -n "$INPUT_VERSION" ]]; then
+            V="$INPUT_VERSION"
+          else
+            V="$(date +%y.%m.%d)"
+          fi
+          if [[ ! "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "版本号不合法：$V（要求 semver，如 26.10.25 或 26.10.25-2）" >&2
+            exit 1
+          fi
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "本次版本：$V"
+
   # ------------------------------------------------------------- Windows
   windows:
     name: Windows · NSIS
+    needs: version
     runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     defaults:
       run:
         shell: bash
@@ -33,26 +72,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: 版本号（tag → tauri.conf.json + Cargo.toml）
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-          else
-            VERSION=$(python -c "import json;print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
-          fi
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          python - "$VERSION" <<'PY'
-          import json, pathlib, re, sys
-          v = sys.argv[1]
-          conf = pathlib.Path("src-tauri/tauri.conf.json")
-          d = json.loads(conf.read_text(encoding="utf-8"))
-          d["version"] = v
-          conf.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-          cargo = pathlib.Path("src-tauri/Cargo.toml")
-          s = cargo.read_text(encoding="utf-8")
-          s = re.sub(r'(?m)^version = "[^"]+"', f'version = "{v}"', s, count=1)
-          cargo.write_text(s, encoding="utf-8")
-          PY
+      - name: 版本号写入构建配置（tag → tauri.conf.json + Cargo.toml）
+        run: bash ./scripts/set-version.sh "$VERSION"
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -76,7 +97,10 @@ jobs:
   # --------------------------------------------------------------- Linux
   linux:
     name: Linux · deb + AppImage
+    needs: version
     runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     defaults:
       run:
         shell: bash
@@ -95,26 +119,8 @@ jobs:
             libgtk-3-dev libasound2-dev libsoup-3.0-dev \
             pkg-config file
 
-      - name: 版本号（tag → tauri.conf.json + Cargo.toml）
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-          else
-            VERSION=$(python -c "import json;print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
-          fi
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          python - "$VERSION" <<'PY'
-          import json, pathlib, re, sys
-          v = sys.argv[1]
-          conf = pathlib.Path("src-tauri/tauri.conf.json")
-          d = json.loads(conf.read_text(encoding="utf-8"))
-          d["version"] = v
-          conf.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-          cargo = pathlib.Path("src-tauri/Cargo.toml")
-          s = cargo.read_text(encoding="utf-8")
-          s = re.sub(r'(?m)^version = "[^"]+"', f'version = "{v}"', s, count=1)
-          cargo.write_text(s, encoding="utf-8")
-          PY
+      - name: 版本号写入构建配置（tag → tauri.conf.json + Cargo.toml）
+        run: bash ./scripts/set-version.sh "$VERSION"
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -145,11 +151,13 @@ jobs:
   # -------------------------------------------------------------- Release
   release:
     name: 创建 Release
-    needs: [windows, linux]
+    needs: [version, windows, linux]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -158,7 +166,6 @@ jobs:
 
       - name: 整理产物与版本号
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p out
           cp artifacts/*.deb "out/Shuo_${VERSION}_amd64.deb"
           cp artifacts/*.AppImage "out/Shuo_${VERSION}_amd64.AppImage"
@@ -168,7 +175,6 @@ jobs:
       - name: 校验产物（真实安装包 + 带版本号，不能是 zip）
         run: |
           set -e
-          VERSION="${GITHUB_REF_NAME#v}"
           n=$(find out -maxdepth 1 -type f | wc -l)
           test "$n" -eq 3 || { echo "产物数量不对：$n"; ls -l out; exit 1; }
           if ls out/*.zip >/dev/null 2>&1; then
@@ -186,7 +192,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           TAG="$GITHUB_REF_NAME"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" out/* --clobber --repo "$GITHUB_REPOSITORY"

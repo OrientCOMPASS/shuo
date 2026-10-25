@@ -324,6 +324,20 @@ fn list_presets() -> Vec<PresetInfo> {
     .collect()
 }
 
+/// 单模型直出的提示词预设（进 ASR chat 模板 system 段，与 finetune/prompts.py 对表）
+#[tauri::command]
+fn list_asr_presets() -> Vec<PresetInfo> {
+  asr::unified_preset_list()
+    .into_iter()
+    .map(|(key, zh, en)| PresetInfo { key, name_zh: zh, name_en: en })
+    .collect()
+}
+
+#[tauri::command]
+fn get_asr_preset_prompt(key: String) -> String {
+  asr::unified_preset_prompt(&key).unwrap_or("").to_string()
+}
+
 #[derive(Serialize)]
 struct PresetInfo {
   key: &'static str,
@@ -450,6 +464,8 @@ fn main() {
       get_history,
       clear_history,
       list_presets,
+      list_asr_presets,
+      get_asr_preset_prompt,
       get_prompt,
       get_preset_prompt,
       get_custom_prompts,

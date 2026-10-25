@@ -51,6 +51,9 @@ fn d_hotkey_terminal() -> String {
 fn d_true() -> bool {
   true
 }
+fn d_single_preset() -> String {
+  crate::asr::UPRESET_POLISH_ZH.into()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -70,6 +73,15 @@ pub struct Config {
   /// LLM 提示词预设 key；`custom` 时使用 `llm_system_prompt`
   pub llm_preset: String,
   pub llm_system_prompt: String,
+  /// 单模型直出：微调后的 ASR 模型按 system 段提示词直接输出优化文本，跳过 LLM 后处理
+  #[serde(default)]
+  pub single_model_enabled: bool,
+  /// 单模型直出提示词预设 key（见 `asr::unified_preset_list`）；`custom` 时用 `single_model_prompt`
+  #[serde(default = "d_single_preset")]
+  pub single_model_preset: String,
+  /// 自定义单模型提示词（进 chat 模板 system 段；效果取决于微调数据是否覆盖）
+  #[serde(default = "crate::asr::default_unified_prompt")]
+  pub single_model_prompt: String,
   /// 启动后直接收到托盘（默认否）
   pub start_hidden: bool,
   /// 模型目录覆盖（空 = 自动查找）
@@ -103,6 +115,9 @@ impl Default for Config {
       llm_enabled: false,
       llm_preset: d_preset(),
       llm_system_prompt: default_prompt(),
+      single_model_enabled: false,
+      single_model_preset: d_single_preset(),
+      single_model_prompt: crate::asr::default_unified_prompt(),
       hotkey_enabled: true,
       hotkey_terminal_enabled: true,
       hotkey_terminal: d_hotkey_terminal(),
@@ -121,6 +136,21 @@ pub fn load_config() -> Config {
       Config::default()
     }),
     Err(_) => Config::default(),
+  }
+}
+
+impl Config {
+  /// 单模型直出时进 chat 模板 system 段的提示词。
+  /// 预设 key 非法时回退 `polish_zh`；`custom` 用用户自定义文本（可为空 = 逐字转写）。
+  pub fn single_model_context(&self) -> String {
+    if self.single_model_preset == crate::asr::UPRESET_CUSTOM {
+      self.single_model_prompt.trim().to_string()
+    } else {
+      crate::asr::unified_preset_prompt(&self.single_model_preset)
+        .or_else(|| crate::asr::unified_preset_prompt(crate::asr::UPRESET_POLISH_ZH))
+        .unwrap_or("")
+        .to_string()
+    }
   }
 }
 

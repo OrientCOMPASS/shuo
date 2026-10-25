@@ -35,6 +35,8 @@ pub struct Status {
   pub llm_dir: Option<String>,
   pub error: Option<String>,
   pub denoise_ready: bool,
+  /// 当前 ASR 目录是否为统一包（微调产物，system 段提示词可当任务指令）
+  pub asr_unified: bool,
 }
 
 #[derive(Clone)]
@@ -118,6 +120,7 @@ impl AppState {
       llm_dir: paths.llm.as_ref().map(|p| p.display().to_string()),
       error: None,
       denoise_ready: false,
+      asr_unified: paths.asr_unified,
     };
     let state = Arc::new(Self {
       app: app.clone(),
@@ -170,6 +173,7 @@ impl AppState {
     self.set_status(|s| {
       s.asr_dir = paths.asr.as_ref().map(|p| p.display().to_string());
       s.llm_dir = paths.llm.as_ref().map(|p| p.display().to_string());
+      s.asr_unified = paths.asr_unified;
     });
     if cfg.llm_enabled && self.llm.lock().unwrap().is_none() {
       spawn_llm_loader(self.clone());
@@ -262,7 +266,18 @@ fn spawn_loader(state: Arc<AppState>) {
       match AsrPipeline::load(&asr_dir, threads) {
         Ok(p) => {
           *state.asr.lock().unwrap() = Some(p);
-          crate::log_line("ASR 模型就绪");
+          let unified = state.paths.lock().unwrap().asr_unified;
+          crate::log_line(if unified {
+            "ASR 模型就绪（统一包：支持单模型直出）"
+          } else {
+            "ASR 模型就绪（基座包）"
+          });
+          if cfg.single_model_enabled && !unified {
+            crate::log_line(
+              "提示：已开启单模型直出，但当前模型包不是微调统一包（缺 unified.json），\
+               提示词只会作为识别偏置，不会执行文本优化；统一包产线见 finetune/README.md",
+            );
+          }
           state.set_status(|s| {
             s.asr_ready = true;
             s.loading = false;
@@ -395,6 +410,7 @@ fn spawn_worker(state: Arc<AppState>, rx: std::sync::mpsc::Receiver<Job>) {
                 "asr_text": asr.text,
                 "llm_text": llm_text,
                 "llm_s": llm_s,
+                "single_model": cfg.single_model_enabled,
                 "text": final_text,
                 "time": crate::config::chrono_time(),
               }),
@@ -444,17 +460,22 @@ fn transcribe(
     Some(lang_owned.as_str())
   };
 
+  // 单模型直出：用户提示词进 chat 模板 system 段（context 通道），识别即优化，
+  // 跳过 LLM 后处理段。基座包（无 unified.json）上提示词只作识别偏置，功能不炸。
+  let single = cfg.single_model_enabled;
+  let context = if single { cfg.single_model_context() } else { String::new() };
+
   let asr_result = {
     let mut guard = state.asr.lock().unwrap();
     let pipeline = guard.as_mut().ok_or("ASR 模型尚未加载完成")?;
     if cfg.denoise {
-      pipeline.transcribe_single(&samples, language, 512)?
+      pipeline.transcribe_single(&samples, language, &context, 512)?
     } else {
-      pipeline.transcribe(&samples, language, 512, 30)?
+      pipeline.transcribe(&samples, language, &context, 512, 30)?
     }
   };
 
-  if !cfg.llm_enabled || asr_result.text.trim().is_empty() {
+  if single || !cfg.llm_enabled || asr_result.text.trim().is_empty() {
     return Ok((asr_result, None, 0.0));
   }
 

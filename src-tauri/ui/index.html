@@ -57,6 +57,7 @@
 
       <div class="chips" id="chips">
         <span class="chip" id="chip-asr" title="ASR"><i class="dot"></i><span>ASR</span></span>
+        <span class="chip" id="chip-single" title="Single-model" hidden><i class="dot"></i><span>直出</span></span>
         <span class="chip" id="chip-llm" title="LLM"><i class="dot"></i><span>LLM</span></span>
         <span class="chip" id="chip-denoise"><i class="dot"></i><span data-i18n="settings.denoise">降噪</span></span>
       </div>
@@ -192,6 +193,21 @@
           <label data-i18n="settings.remove_punc">去标点（替换为空格）</label>
           <label class="switch"><input type="checkbox" id="chk-remove-punc" /><i></i></label>
         </div>
+      </section>
+
+      <section class="group">
+        <h3 class="group-title"><span data-i18n="settings.single">单模型直出</span></h3>
+        <div class="row">
+          <label data-i18n="settings.single_enable">启用（微调统一模型）</label>
+          <label class="switch"><input type="checkbox" id="chk-single" /><i></i></label>
+        </div>
+        <div class="row">
+          <label data-i18n="settings.single_preset">优化提示词</label>
+          <select id="sel-single-preset"></select>
+        </div>
+        <textarea id="single-prompt" rows="3" spellcheck="false" hidden></textarea>
+        <p class="hint" id="single-model-state"></p>
+        <p class="hint" data-i18n="settings.single_hint">微调统一模型按提示词一步直出优化文本（识别+整理），不再经过 LLM。需要 unified 模型包（finetune/ 产线）；基座包上提示词仅作识别偏置。</p>
       </section>
 
       <section class="group">

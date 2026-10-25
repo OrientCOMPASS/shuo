@@ -6,6 +6,13 @@
 // 与 Python 版的数值对齐由 `tests` 里的 mel / 文本对照保证；改动本文件请先跑
 // `cargo test --release -- --nocapture asr`。
 //
+// 单模型直出（context 通道）：chat 模板 system 段可携带用户提示词（`context`）。
+// 基座模型只把它当识别先验/热词偏置（Qwen3-ASR 被刻意训练成不遵循 prompt 里的
+// 自然语言指令）；配合 `finetune/` 微调 + ONNX 补丁产出的 unified 模型包
+// （目录带 `unified.json` 标记），同一套权重即可「语音识别 + 按提示词优化文本」
+// 一步直出，无需 LLM 后处理。训练与推理的模板逐 token 一致（见
+// `finetune/README.md` 与 `prompt_ids` 单测）。
+//
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::path::{Path, PathBuf};
@@ -32,6 +39,48 @@ pub const IM_START_ID: i64 = 151_644;
 pub const IM_END_ID: i64 = 151_645;
 pub const ENDOFTEXT_ID: i64 = 151_643;
 pub const NEWLINE_ID: i64 = 198;
+
+// ───────────────────────── 单模型直出：提示词预设 ─────────────────────────
+//
+// 这些短提示词进 chat 模板 system 段（context 通道），是「单模型完成识别+文本
+// 优化」的任务开关。字符串与 `finetune/prompts.py` 的 PRESETS **逐字一致**
+// （CI 的 finetune-py job 用 `finetune/check_prompt_sync.py` 强制对表，防漂移）。
+// 微调数据的 prompt 字段用的就是这批字符串；推理端换了措辞=模型没学过的任务。
+
+pub const UPRESET_VERBATIM: &str = "verbatim";
+pub const UPRESET_POLISH_ZH: &str = "polish_zh";
+pub const UPRESET_POLISH_EN: &str = "polish_en";
+pub const UPRESET_TRANSLATE_ZH: &str = "translate_zh";
+pub const UPRESET_TRANSLATE_EN: &str = "translate_en";
+pub const UPRESET_CUSTOM: &str = "custom";
+
+/// 预设 key → system 段提示词全文（`verbatim` = 空串 = 纯转写，基座原生行为）。
+pub fn unified_preset_prompt(key: &str) -> Option<&'static str> {
+  Some(match key {
+    UPRESET_VERBATIM => "",
+    UPRESET_POLISH_ZH => "转为书面文本：修正标点，去除口癖，保持原意。",
+    UPRESET_POLISH_EN => "Rewrite as clean written text: fix punctuation, remove fillers, keep the meaning.",
+    UPRESET_TRANSLATE_ZH => "translate to Chinese",
+    UPRESET_TRANSLATE_EN => "translate to English",
+    _ => return None,
+  })
+}
+
+/// (key, 中文名, 英文名)——前端下拉框展示用（与 llm::preset_list 同构）。
+pub fn unified_preset_list() -> Vec<(&'static str, &'static str, &'static str)> {
+  vec![
+    (UPRESET_VERBATIM, "逐字转写（不优化）", "Verbatim (no polish)"),
+    (UPRESET_POLISH_ZH, "书面化 - 标点/去口癖", "Written text — punctuation/fillers"),
+    (UPRESET_POLISH_EN, "Written polish (EN)", "Written polish (EN)"),
+    (UPRESET_TRANSLATE_ZH, "直出中文（翻译）", "Output Chinese (translate)"),
+    (UPRESET_TRANSLATE_EN, "直出英文（翻译）", "Output English (translate)"),
+  ]
+}
+
+/// 默认自定义提示词（`single_model_preset == "custom"` 时的初始值）。
+pub fn default_unified_prompt() -> String {
+  "转为书面文本：修正标点，去除口癖，保持原意。".to_string()
+}
 
 #[derive(Debug, Clone)]
 pub struct AsrResult {
@@ -130,24 +179,18 @@ impl AsrPipeline {
       .map_err(|e| format!("解码失败：{e}"))
   }
 
-  fn build_prompt(&self, num_audio_tokens: usize, language: Option<&str>) -> Result<Vec<i64>, String> {
-    let mut ids = vec![IM_START_ID];
-    ids.extend(self.encode_ids("system")?);
-    ids.extend([NEWLINE_ID, IM_END_ID, NEWLINE_ID]);
-    ids.push(IM_START_ID);
-    ids.extend(self.encode_ids("user")?);
-    ids.push(NEWLINE_ID);
-    ids.push(AUDIO_START_ID);
-    ids.extend(std::iter::repeat_n(AUDIO_PAD_ID, num_audio_tokens));
-    ids.push(AUDIO_END_ID);
-    ids.extend([IM_END_ID, NEWLINE_ID]);
-    ids.push(IM_START_ID);
-    ids.extend(self.encode_ids("assistant")?);
-    ids.push(NEWLINE_ID);
-    if let Some(lang) = language {
-      ids.extend(self.encode_ids(&format!("language {lang}<asr_text>"))?);
-    }
-    Ok(ids)
+  fn build_prompt(
+    &self,
+    num_audio_tokens: usize,
+    language: Option<&str>,
+    context: &str,
+  ) -> Result<Vec<i64>, String> {
+    prompt_ids(
+      &|t| self.encode_ids(t),
+      num_audio_tokens,
+      language,
+      context,
+    )
   }
 
   /// encoder：mel [N_MELS, frames] → 音频特征 [n_tokens, HIDDEN]
@@ -261,6 +304,7 @@ impl AsrPipeline {
     &mut self,
     wav: &[f32],
     language: Option<&str>,
+    context: &str,
     max_new_tokens: usize,
   ) -> Result<(String, String, usize), String> {
     let (mel_data, frames) = mel::log_mel(wav);
@@ -269,7 +313,7 @@ impl AsrPipeline {
     }
     let audio = self.encode_audio(&mel_data, frames)?;
     let n_audio = audio.len() / HIDDEN;
-    let ids = self.build_prompt(n_audio, language)?;
+    let ids = self.build_prompt(n_audio, language, context)?;
     let (embeds, seq) = self.fuse_embeds(&ids, &audio)?;
     drop(audio);
 
@@ -355,10 +399,12 @@ impl AsrPipeline {
   }
 
   /// 转写一段 16 kHz 单声道音频；长音频按静音切分。
+  /// `context` 进 chat 模板 system 段（单模型直出的任务开关；空串 = 原生转写）。
   pub fn transcribe(
     &mut self,
     wav: &[f32],
     language: Option<&str>,
+    context: &str,
     max_new_tokens: usize,
     chunk_sec: usize,
   ) -> Result<AsrResult, String> {
@@ -366,7 +412,7 @@ impl AsrPipeline {
     let audio_s = wav.len() as f64 / SAMPLE_RATE as f64;
     let splits = mel::silence_splits(wav, chunk_sec);
     if splits.is_empty() {
-      let (text, lang, tokens) = self.transcribe_chunk(wav, language, max_new_tokens)?;
+      let (text, lang, tokens) = self.transcribe_chunk(wav, language, context, max_new_tokens)?;
       return Ok(AsrResult {
         text,
         language: lang,
@@ -388,6 +434,7 @@ impl AsrPipeline {
       let (text, l, n_tokens) = self.transcribe_chunk(
         &wav[bounds[i]..bounds[i + 1]],
         language,
+        context,
         max_new_tokens,
       )?;
       let text = text.trim();
@@ -414,10 +461,11 @@ impl AsrPipeline {
     &mut self,
     wav: &[f32],
     language: Option<&str>,
+    context: &str,
     max_new_tokens: usize,
   ) -> Result<AsrResult, String> {
     let t0 = Instant::now();
-    let (text, lang, tokens) = self.transcribe_chunk(wav, language, max_new_tokens)?;
+    let (text, lang, tokens) = self.transcribe_chunk(wav, language, context, max_new_tokens)?;
     Ok(AsrResult {
       text,
       language: lang,
@@ -427,6 +475,52 @@ impl AsrPipeline {
       chunks: 1,
     })
   }
+}
+
+/// chat 模板 token 序列构造（纯函数，`encode` 为「文本片段 → token id」闭包）。
+///
+/// 模板与 HF `Qwen/Qwen3-ASR-0.6B` 的 `apply_chat_template`（训练侧
+/// `finetune/sft_lora.py` 的 prefix）以及 llama.cpp 侧（qsa E1 实测）逐 token 一致：
+///
+/// ```text
+/// <|im_start|>system\n{context}<|im_end|>\n
+/// <|im_start|>user\n<|audio_bos|><|AUDIO|>×N<|audio_eos|><|im_end|>\n
+/// <|im_start|>assistant\n[language X<asr_text>]
+/// ```
+///
+/// context 为空时保持历史路径（`encode("system")` + 换行 token），数值与
+/// Python 版逐 token 对齐（AGENTS.md 记录的既有保证不回归）；非空时
+/// `system\n{context}` 作为单一片段整体编码——与训练端「整串渲染后一次
+/// tokenize」在特殊 token 边界内的行为一致。
+pub fn prompt_ids(
+  encode: &dyn Fn(&str) -> Result<Vec<i64>, String>,
+  num_audio_tokens: usize,
+  language: Option<&str>,
+  context: &str,
+) -> Result<Vec<i64>, String> {
+  let ctx = context.trim();
+  let mut ids = vec![IM_START_ID];
+  if ctx.is_empty() {
+    ids.extend(encode("system")?);
+    ids.push(NEWLINE_ID);
+  } else {
+    ids.extend(encode(&format!("system\n{ctx}"))?);
+  }
+  ids.extend([IM_END_ID, NEWLINE_ID]);
+  ids.push(IM_START_ID);
+  ids.extend(encode("user")?);
+  ids.push(NEWLINE_ID);
+  ids.push(AUDIO_START_ID);
+  ids.extend(std::iter::repeat_n(AUDIO_PAD_ID, num_audio_tokens));
+  ids.push(AUDIO_END_ID);
+  ids.extend([IM_END_ID, NEWLINE_ID]);
+  ids.push(IM_START_ID);
+  ids.extend(encode("assistant")?);
+  ids.push(NEWLINE_ID);
+  if let Some(lang) = language {
+    ids.extend(encode(&format!("language {lang}<asr_text>"))?);
+  }
+  Ok(ids)
 }
 
 fn argmax(v: &[f32]) -> usize {
@@ -456,6 +550,90 @@ mod tests {
       .unwrap_or_else(|_| Path::new(env!("CARGO_MANIFEST_DIR")).join("../Qwen3-ASR-0.6B-ONNX-CPU"))
   }
 
+  /// 假编码器：把每个字符映射成固定 id（'a'→1），只为验证模板结构。
+  fn fake_encode(text: &str) -> Result<Vec<i64>, String> {
+    Ok(text.chars().map(|c| c as i64).collect())
+  }
+
+  #[test]
+  fn prompt_ids_empty_context_matches_legacy_layout() {
+    // 空 context 必须保持历史结构：im_start + "system" + \n + im_end + \n …
+    let ids = prompt_ids(&fake_encode, 2, None, "").expect("ids");
+    let mut expect = vec![IM_START_ID];
+    expect.extend("system".chars().map(|c| c as i64));
+    expect.extend([NEWLINE_ID, IM_END_ID, NEWLINE_ID, IM_START_ID]);
+    expect.extend("user".chars().map(|c| c as i64));
+    expect.push(NEWLINE_ID);
+    expect.push(AUDIO_START_ID);
+    expect.extend([AUDIO_PAD_ID, AUDIO_PAD_ID]);
+    expect.push(AUDIO_END_ID);
+    expect.extend([IM_END_ID, NEWLINE_ID, IM_START_ID]);
+    expect.extend("assistant".chars().map(|c| c as i64));
+    expect.push(NEWLINE_ID);
+    assert_eq!(ids, expect);
+  }
+
+  #[test]
+  fn prompt_ids_context_goes_into_system_segment() {
+    // context 非空：`system\n{ctx}` 整体作为单一片段编码（与训练端一致），
+    // 且只出现在 system 段，user/assistant 段结构不变。
+    let ids = prompt_ids(&fake_encode, 1, None, "translate to English").expect("ids");
+    let mut expect = vec![IM_START_ID];
+    expect.extend("system\ntranslate to English".chars().map(|c| c as i64));
+    expect.extend([IM_END_ID, NEWLINE_ID, IM_START_ID]);
+    expect.extend("user".chars().map(|c| c as i64));
+    expect.push(NEWLINE_ID);
+    expect.push(AUDIO_START_ID);
+    expect.push(AUDIO_PAD_ID);
+    expect.push(AUDIO_END_ID);
+    expect.extend([IM_END_ID, NEWLINE_ID, IM_START_ID]);
+    expect.extend("assistant".chars().map(|c| c as i64));
+    expect.push(NEWLINE_ID);
+    assert_eq!(ids, expect);
+    // 首尾空白要修剪（用户自定义提示词常带换行）
+    let trimmed = prompt_ids(&fake_encode, 1, None, "\n  translate to English \n").expect("ids");
+    assert_eq!(trimmed, ids);
+  }
+
+  #[test]
+  fn prompt_ids_forced_language_suffix() {
+    let ids = prompt_ids(&fake_encode, 1, Some("Chinese"), "转为书面文本").expect("ids");
+    let tail: Vec<i64> = "language Chinese<asr_text>".chars().map(|c| c as i64).collect();
+    assert!(ids.ends_with(&tail));
+    // context 仍然进 system 段
+    let head: Vec<i64> = "system\n转为书面文本".chars().map(|c| c as i64).collect();
+    assert_eq!(ids[1..1 + head.len()], head);
+  }
+
+  #[test]
+  fn unified_presets_are_stable() {
+    // 预设 key/提示词是训练数据的一部分，改这里必须同步 finetune/prompts.py
+    // （CI finetune-py job 的 check_prompt_sync.py 会对表）。
+    assert_eq!(unified_preset_prompt(UPRESET_VERBATIM), Some(""));
+    assert_eq!(
+      unified_preset_prompt(UPRESET_TRANSLATE_ZH),
+      Some("translate to Chinese")
+    );
+    assert_eq!(
+      unified_preset_prompt(UPRESET_TRANSLATE_EN),
+      Some("translate to English")
+    );
+    assert!(unified_preset_prompt("nonexistent").is_none());
+    let keys: Vec<&str> = unified_preset_list().iter().map(|(k, _, _)| *k).collect();
+    assert_eq!(
+      keys,
+      vec![
+        UPRESET_VERBATIM,
+        UPRESET_POLISH_ZH,
+        UPRESET_POLISH_EN,
+        UPRESET_TRANSLATE_ZH,
+        UPRESET_TRANSLATE_EN
+      ]
+    );
+    // custom 不在列表里（前端单独追加），但解析必须走 single_model_prompt
+    assert!(unified_preset_prompt(UPRESET_CUSTOM).is_none());
+  }
+
   #[test]
   fn transcribe_reference_wav() {
     let root = model_root();
@@ -469,10 +647,36 @@ mod tests {
     let wav: Vec<f32> = wav16.iter().map(|&s| s as f32 / 32768.0).collect();
     // 测试音频本身就是 16 kHz
     let mut p = AsrPipeline::load(&root, 6).expect("load");
-    let r = p.transcribe(&wav, None, 512, 30).expect("transcribe");
+    let r = p.transcribe(&wav, None, "", 512, 30).expect("transcribe");
     eprintln!("TEXT={}", r.text);
     eprintln!("LANG={} tokens={} asr_s={:.2}", r.language, r.tokens, r.asr_s);
     assert!(!r.text.trim().is_empty());
+  }
+
+  /// 真实模型冒烟（仅 SHUO_ASR_DIR 存在时跑，CI 的 ort-e2e 模式使用）：
+  /// 基座模型带 context 也必须正常出文本——context 只是 system 段偏置，
+  /// 不能把原生转写打挂（微调 unified 包的「直出优化文本」行为另在
+  /// finetune/verify_unified_onnx.py 验证）。
+  #[test]
+  fn transcribe_with_context_smoke() {
+    let root = model_root();
+    if !root.join("onnx_models/encoder_conv.onnx").exists() {
+      eprintln!("跳过：{} 不存在", root.display());
+      return;
+    }
+    let wav_path = root.join("test_audio/librispeech_1_1089_1.wav");
+    let mut reader = hound_lite::Wav::open(&wav_path).expect("wav");
+    let wav16 = reader.read_i16_mono();
+    let wav: Vec<f32> = wav16.iter().map(|&s| s as f32 / 32768.0).collect();
+    let mut p = AsrPipeline::load(&root, 6).expect("load");
+    let plain = p.transcribe_single(&wav, None, "", 512).expect("plain");
+    let ctx = p
+      .transcribe_single(&wav, None, "translate to English", 512)
+      .expect("ctx");
+    eprintln!("PLAIN={}", plain.text);
+    eprintln!("CTX  ={}", ctx.text);
+    assert!(!plain.text.trim().is_empty());
+    assert!(!ctx.text.trim().is_empty());
   }
 }
 

@@ -43,6 +43,14 @@ const EXTRA = {
     "settings.llm_custom": "Custom prompt",
     "settings.prompt_name": "Prompt name",
     "settings.llm_hint": "The LLM turns spoken words into written text (punctuation, filler removal). When off, the raw ASR text is used.",
+    "settings.single": "Single-model output",
+    "settings.single_enable": "Enable (fine-tuned unified model)",
+    "settings.single_preset": "Optimization prompt",
+    "settings.single_hint": "The fine-tuned unified model applies the prompt while transcribing (recognition + polish in one pass); the LLM stage is skipped. Requires a unified model package (finetune/ pipeline); on the base package the prompt only biases recognition.",
+    "settings.single_state_unified": "Unified package detected — prompts are executed as instructions.",
+    "settings.single_state_base": "Base package (no unified.json) — prompt only biases recognition. Build a unified package with the finetune/ pipeline.",
+    "status.single": "single-model",
+    "badge.single": "single-model",
     "settings.engine": "Models & engine",
     "settings.interface": "Interface",
     "rec.capturing": "Press a new hotkey (mouse/keyboard)…",
@@ -90,6 +98,14 @@ const EXTRA = {
     "settings.llm_custom": "自定义提示词",
     "settings.prompt_name": "提示词名称",
     "settings.llm_hint": "LLM 会把口语转成书面文本（补标点、去口癖）。关闭时直接输出 ASR 原文。",
+    "settings.single": "单模型直出",
+    "settings.single_enable": "启用（微调统一模型）",
+    "settings.single_preset": "优化提示词",
+    "settings.single_hint": "微调统一模型按提示词一步直出优化文本（识别+整理），不再经过 LLM。需要 unified 模型包（finetune/ 产线）；基座包上提示词仅作识别偏置。",
+    "settings.single_state_unified": "已检测到统一包——提示词会被当作任务指令执行。",
+    "settings.single_state_base": "当前为基座包（无 unified.json）——提示词仅作识别偏置。可用 finetune/ 产线制作统一包。",
+    "status.single": "直出",
+    "badge.single": "单模型直出",
     "settings.engine": "模型与引擎",
     "settings.interface": "界面",
     "rec.capturing": "请按下新的热键（鼠标/键盘）…",
@@ -146,6 +162,7 @@ const state = {
   status: {},
   history: [],
   presets: [],
+  presetsAsr: [],
   custom: {},
   micList: [],
   locales: [],
@@ -259,12 +276,23 @@ function renderStatus(s) {
   setChip($("#chip-asr"), asr.asr_ready ? "ok" : asr.error ? "err" : "pending", asrLabel);
 
   const llmOn = !!(state.cfg && state.cfg.llm_enabled);
-  const llmLabel = !llmOn
+  const singleOn = !!(state.cfg && state.cfg.single_model_enabled);
+  const llmLabel = !llmOn || singleOn
     ? `LLM · ${t("status.off")}`
     : asr.llm_ready
       ? `LLM · ${t("status.ready")}`
       : `${t("status.loading")} · LLM`;
-  setChip($("#chip-llm"), !llmOn ? "off" : asr.llm_ready ? "ok" : "pending", llmLabel);
+  setChip($("#chip-llm"), !llmOn || singleOn ? "off" : asr.llm_ready ? "ok" : "pending", llmLabel);
+
+  const chipSingle = $("#chip-single");
+  if (chipSingle) {
+    chipSingle.hidden = !singleOn;
+    if (singleOn) {
+      const sLabel = `${t("status.single")} · ${asr.asr_unified ? t("status.ready") : t("settings.single_state_base").split("——")[0]}`;
+      setChip(chipSingle, asr.asr_unified ? "ok" : "pending", asr.asr_unified ? `${t("status.single")} · ${t("status.ready")}` : sLabel);
+    }
+  }
+  renderSingleModelState();
 
   const dn = !!state.cfg && !!state.cfg.denoise;
   const dnLabel = dn
@@ -560,6 +588,44 @@ function fillPresets() {
   sel.value = state.cfg.llm_preset || "standard";
 }
 
+function fillSinglePresets() {
+  const sel = $("#sel-single-preset");
+  if (!sel) return;
+  sel.innerHTML = "";
+  for (const p of state.presetsAsr) {
+    const o = document.createElement("option");
+    o.value = p.key;
+    o.textContent = presetName(p);
+    sel.append(o);
+  }
+  const custom = document.createElement("option");
+  custom.value = "custom";
+  custom.textContent = t("settings.llm_custom");
+  sel.append(custom);
+  sel.value = state.cfg.single_model_preset || "polish_zh";
+}
+
+async function updateSinglePromptArea() {
+  const ta = $("#single-prompt");
+  if (!ta) return;
+  const preset = state.cfg.single_model_preset || "polish_zh";
+  if (preset === "custom") {
+    ta.value = state.cfg.single_model_prompt || "";
+    ta.readOnly = false;
+    ta.hidden = false;
+    ta.classList.remove("disabled");
+  } else {
+    try {
+      ta.value = await invoke("get_asr_preset_prompt", { key: preset });
+    } catch {
+      ta.value = "";
+    }
+    ta.readOnly = true;
+    ta.hidden = false;
+    ta.classList.add("disabled");
+  }
+}
+
 function fillCustomPrompts() {
   const sel = $("#sel-custom");
   sel.innerHTML = "";
@@ -582,6 +648,8 @@ function syncSettings() {
   $("#chk-history").checked = !!c.save_history;
   $("#chk-remove-punc").checked = !!c.remove_punc;
   $("#chk-llm").checked = !!c.llm_enabled;
+  const chkSingle = $("#chk-single");
+  if (chkSingle) chkSingle.checked = !!c.single_model_enabled;
   $("#row-remove-punc").style.display = isZh() ? "" : "none";
   $("#chk-hotkey").checked = c.hotkey_enabled !== false;
   $("#chk-hotkey-terminal").checked = c.hotkey_terminal_enabled !== false;
@@ -589,10 +657,22 @@ function syncSettings() {
   fillMics();
   fillAsrLangs();
   fillPresets();
+  fillSinglePresets();
   fillCustomPrompts();
   fillLocales();
   renderHotkeyBadge();
   updatePromptArea();
+  updateSinglePromptArea();
+  renderSingleModelState();
+}
+
+function renderSingleModelState() {
+  const el = $("#single-model-state");
+  if (!el) return;
+  const unified = !!(state.status && state.status.asr_unified);
+  el.textContent = unified
+    ? "✔ " + t("settings.single_state_unified")
+    : "⚠ " + t("settings.single_state_base");
 }
 
 async function updatePromptArea() {
@@ -651,6 +731,28 @@ function bindSettings() {
     await patchConfig({ llm_enabled: e.target.checked });
     renderStatus(state.status);
   });
+  const chkSingle = $("#chk-single");
+  if (chkSingle) {
+    chkSingle.addEventListener("change", async (e) => {
+      await patchConfig({ single_model_enabled: e.target.checked });
+      renderStatus(state.status);
+    });
+  }
+  const selSingle = $("#sel-single-preset");
+  if (selSingle) {
+    selSingle.addEventListener("change", async (e) => {
+      await patchConfig({ single_model_preset: e.target.value });
+      await updateSinglePromptArea();
+    });
+  }
+  const taSingle = $("#single-prompt");
+  if (taSingle) {
+    taSingle.addEventListener("change", async () => {
+      if ((state.cfg.single_model_preset || "") !== "custom") return;
+      await patchConfig({ single_model_prompt: taSingle.value });
+      toast(t("toast.saved"), "ok", 1200);
+    });
+  }
 
   $("#sel-mic").addEventListener("change", async (e) => {
     const dev = e.target.value || null;
@@ -913,8 +1015,13 @@ async function bindEvents() {
     const parts = [];
     if (p.llm_text) parts.push(t("result.final"));
     if (p.llm_s) parts.push(`LLM ${Number(p.llm_s).toFixed(2)}s`);
+    if (p.single_model) parts.push(t("badge.single"));
     renderMeta(parts.join(" · "));
-    $("#meta-llm").textContent = p.llm_text ? `LLM ${Number(p.llm_s || 0).toFixed(1)}s` : "";
+    $("#meta-llm").textContent = p.llm_text
+      ? `LLM ${Number(p.llm_s || 0).toFixed(1)}s`
+      : p.single_model
+        ? t("badge.single")
+        : "";
 
     if (state.cfg.save_history) {
       state.history.unshift({
@@ -988,6 +1095,11 @@ async function main() {
     state.presets = await invoke("list_presets");
   } catch {
     state.presets = [];
+  }
+  try {
+    state.presetsAsr = await invoke("list_asr_presets");
+  } catch {
+    state.presetsAsr = [];
   }
   try {
     state.custom = await invoke("get_custom_prompts");

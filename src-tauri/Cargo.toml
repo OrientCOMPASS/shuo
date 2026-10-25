@@ -5,7 +5,7 @@
 
 [package]
 name = "shuo"
-version = "26.10.25"
+version = "0.2.0"
 description = "Shuo — 本地语音识别"
 authors = ["a2heng"]
 license = "GPL-3.0-or-later"

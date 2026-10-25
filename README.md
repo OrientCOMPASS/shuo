@@ -14,10 +14,26 @@ Qwen3-Omni）用 LoRA 微调成**一个模型完成「语音识别 + 按提示�
 
 * 任务预设：逐字转写 / 中文书面化 / 英文书面化 / 直出中文 / 直出英文 / 自定义提示词；
 * 基座模型不执行 prompt 指令（官方防指令注入设计），**必须配合微调统一包**
-  （`Qwen3-ASR-0.6B-ONNX-CPU-unified/`，带 `unified.json` 标记）才能兑现任务开关；
-  基座包上开启该模式不报错，提示词退化为识别偏置；
-* 统一包产线全在 CI（LoRA 训练 → int8 ONNX 权重补丁 → onnxruntime 行为复测），
+  （目录带 `unified.json` 标记）才能兑现任务开关；基座包上开启该模式不报错，
+  提示词退化为识别偏置；
+* 统一包产线全在 CI（LoRA 训练 → 权重落地 → 运行时行为复测），
   方法与判定标准见 [`finetune/README.md`](./finetune/README.md)。
+
+### 推理后端（本分支：llama.cpp/GGUF + 1.7B）
+
+本分支（`feat/gguf-1.7b`）把 ASR 推理框架从 ort/ONNX 迁移到 **llama.cpp/GGUF**
+（`llama-cpp-sys-2` 源码静态链接进可执行文件，无 DLL/so 伴生），并换用
+**Qwen3-ASR-1.7B**（论文所称开源 ASR SOTA，ggml-org 官方 GGUF）：
+
+| 后端 | 模型目录 | 说明 |
+|---|---|---|
+| `gguf`（本分支优先） | `Qwen3-ASR-1.7B-GGUF/`（官方包原样解压）或 `Qwen3-ASR-1.7B-GGUF-unified/`（gguf-e2 产线统一包） | 目录内 `mmproj` 前缀 `.gguf`=音频编码器，其余最大 `.gguf`=LM |
+| `onnx`（保留） | `Qwen3-ASR-0.6B-ONNX-CPU[-unified]/` | Daumee 包；降噪模型与 LLM 后处理段仍走 ort |
+
+配置 `asr_backend`：`auto`（默认，有 GGUF 模型优先 GGUF）/ `onnx` / `gguf`；
+所选后端模型缺失时自动回退另一个可用后端（日志说明）。UI 状态 chip 与引擎行
+会显示当前后端（`ASR (GGUF)` / `ASR·ONNX`）。ort-e2e 与 gguf-e2e 两个 CI 模式
+分别在真实模型上验证两条运行时链路（finetune.yml 手动触发）。
 
 ## 两种实现 / Two implementations
 

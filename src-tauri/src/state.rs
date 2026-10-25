@@ -15,8 +15,45 @@ use crate::asr::AsrPipeline;
 use crate::audio::RecorderHandle;
 use crate::config::{Config, HistoryItem};
 use crate::denoise::Denoiser;
+use crate::gguf_asr::GgufAsr;
 use crate::llm::{LlmPipeline, Sampling, preset_prompt};
-use crate::models::{self, ModelPaths};
+use crate::models::{self, Backend, ModelPaths};
+
+/// ASR 推理引擎：ONNX（ort，Daumee 0.6B 包）或 GGUF（llama.cpp，1.7B）。
+/// 两条路径对外同接口（transcribe/transcribe_single → AsrResult），worker 无差别调度。
+pub enum AsrEngine {
+  Onnx(AsrPipeline),
+  Gguf(GgufAsr),
+}
+
+impl AsrEngine {
+  pub fn transcribe(
+    &mut self,
+    wav: &[f32],
+    language: Option<&str>,
+    context: &str,
+    max_new_tokens: usize,
+    chunk_sec: usize,
+  ) -> Result<crate::asr::AsrResult, String> {
+    match self {
+      AsrEngine::Onnx(p) => p.transcribe(wav, language, context, max_new_tokens, chunk_sec),
+      AsrEngine::Gguf(p) => p.transcribe(wav, language, context, max_new_tokens, chunk_sec),
+    }
+  }
+
+  pub fn transcribe_single(
+    &mut self,
+    wav: &[f32],
+    language: Option<&str>,
+    context: &str,
+    max_new_tokens: usize,
+  ) -> Result<crate::asr::AsrResult, String> {
+    match self {
+      AsrEngine::Onnx(p) => p.transcribe_single(wav, language, context, max_new_tokens),
+      AsrEngine::Gguf(p) => p.transcribe_single(wav, language, context, max_new_tokens),
+    }
+  }
+}
 
 pub struct Job {
   pub samples: Vec<f32>,
@@ -37,6 +74,8 @@ pub struct Status {
   pub denoise_ready: bool,
   /// 当前 ASR 目录是否为统一包（微调产物，system 段提示词可当任务指令）
   pub asr_unified: bool,
+  /// 当前 ASR 推理后端："onnx" / "gguf" / ""（未加载）
+  pub asr_backend: String,
 }
 
 #[derive(Clone)]
@@ -96,7 +135,7 @@ pub struct AppState {
   pub app: AppHandle,
   pub cfg: Mutex<Config>,
   pub paths: Mutex<ModelPaths>,
-  pub asr: Mutex<Option<AsrPipeline>>,
+  pub asr: Mutex<Option<AsrEngine>>,
   pub llm: Mutex<Option<LlmPipeline>>,
   pub denoiser: Mutex<Option<Denoiser>>,
   pub status: Mutex<Status>,
@@ -121,6 +160,7 @@ impl AppState {
       error: None,
       denoise_ready: false,
       asr_unified: paths.asr_unified,
+      asr_backend: String::new(),
     };
     let state = Arc::new(Self {
       app: app.clone(),
@@ -170,10 +210,11 @@ impl AppState {
       let mut p = self.paths.lock().unwrap();
       *p = paths.clone();
     }
+    let cur_backend = self.status.lock().unwrap().asr_backend.clone();
     self.set_status(|s| {
       s.asr_dir = paths.asr.as_ref().map(|p| p.display().to_string());
       s.llm_dir = paths.llm.as_ref().map(|p| p.display().to_string());
-      s.asr_unified = paths.asr_unified;
+      s.asr_unified = if cur_backend == "gguf" { paths.gguf_unified } else { paths.asr_unified };
     });
     if cfg.llm_enabled && self.llm.lock().unwrap().is_none() {
       spawn_llm_loader(self.clone());
@@ -247,51 +288,90 @@ fn spawn_loader(state: Arc<AppState>) {
       let paths = state.paths.lock().unwrap().clone();
       let threads = crate::threads();
 
-      let Some(asr_dir) = paths.asr.clone() else {
+      let backend = models::pick_backend(&cfg, &paths);
+      let Some(backend) = backend else {
         state.set_status(|s| {
           s.loading = false;
           s.error = Some(format!(
-            "找不到 ASR 模型（Qwen3-ASR-0.6B-ONNX-CPU）。已尝试：\n{}",
+            "找不到 ASR 模型（ONNX：Qwen3-ASR-0.6B-ONNX-CPU[-unified]，GGUF：Qwen3-ASR-1.7B-GGUF[-unified]）。已尝试：\n{}",
             paths.tried.join("\n")
           ));
         });
         return;
       };
 
-      crate::log_line(&format!("加载 ASR 模型：{}", asr_dir.display()));
       state.set_status(|s| {
         s.loading = true;
         s.error = None;
       });
-      match AsrPipeline::load(&asr_dir, threads) {
-        Ok(p) => {
-          *state.asr.lock().unwrap() = Some(p);
-          let unified = state.paths.lock().unwrap().asr_unified;
-          crate::log_line(if unified {
-            "ASR 模型就绪（统一包：支持单模型直出）"
-          } else {
-            "ASR 模型就绪（基座包）"
-          });
-          if cfg.single_model_enabled && !unified {
-            crate::log_line(
-              "提示：已开启单模型直出，但当前模型包不是微调统一包（缺 unified.json），\
-               提示词只会作为识别偏置，不会执行文本优化；统一包产线见 finetune/README.md",
-            );
+
+      // 按所选后端加载；显式选择的后端失败时回退另一个可用后端（日志说明）
+      let mut loaded: Option<(Backend, AsrEngine, String)> = None;
+      let mut order = vec![backend];
+      let other = if backend == Backend::Gguf { Backend::Onnx } else { Backend::Gguf };
+      order.push(other);
+      let mut last_err = String::new();
+      for b in order {
+        match b {
+          Backend::Gguf => {
+            let Some(g) = paths.gguf.clone() else { continue };
+            crate::log_line(&format!("加载 GGUF ASR：{} + {}", g.lm.display(), g.mmproj.display()));
+            match GgufAsr::load(&g.lm, &g.mmproj, threads, 512) {
+              Ok(p) => {
+                let dir = g.lm.parent().map(|d| d.display().to_string()).unwrap_or_default();
+                loaded = Some((Backend::Gguf, AsrEngine::Gguf(p), dir));
+                break;
+              }
+              Err(e) => {
+                last_err = e;
+                crate::log_line(&format!("GGUF ASR 加载失败：{last_err}"));
+              }
+            }
           }
-          state.set_status(|s| {
-            s.asr_ready = true;
-            s.loading = false;
-          });
-        }
-        Err(e) => {
-          crate::log_line(&format!("ASR 加载失败：{e}"));
-          state.set_status(|s| {
-            s.loading = false;
-            s.error = Some(format!("ASR 模型加载失败：{e}"));
-          });
-          return;
+          Backend::Onnx => {
+            let Some(dir) = paths.asr.clone() else { continue };
+            crate::log_line(&format!("加载 ONNX ASR：{}", dir.display()));
+            match AsrPipeline::load(&dir, threads) {
+              Ok(p) => {
+                loaded = Some((Backend::Onnx, AsrEngine::Onnx(p), dir.display().to_string()));
+                break;
+              }
+              Err(e) => {
+                last_err = e;
+                crate::log_line(&format!("ONNX ASR 加载失败：{last_err}"));
+              }
+            }
+          }
         }
       }
+
+      let Some((active, engine, dir)) = loaded else {
+        state.set_status(|s| {
+          s.loading = false;
+          s.error = Some(format!("ASR 模型加载失败：{last_err}"));
+        });
+        return;
+      };
+      *state.asr.lock().unwrap() = Some(engine);
+      let unified = models::unified_for(active, &paths);
+      crate::log_line(&format!(
+        "ASR 模型就绪（后端 {}，{}）",
+        match active { Backend::Gguf => "gguf/llama.cpp", Backend::Onnx => "onnx/ort" },
+        if unified { "统一包：支持单模型直出" } else { "基座包" }
+      ));
+      if cfg.single_model_enabled && !unified {
+        crate::log_line(
+          "提示：已开启单模型直出，但当前模型包不是微调统一包（缺 unified.json），\
+           提示词只会作为识别偏置，不会执行文本优化；统一包产线见 finetune/README.md",
+        );
+      }
+      state.set_status(|s| {
+        s.asr_ready = true;
+        s.loading = false;
+        s.asr_unified = unified;
+        s.asr_dir = Some(dir);
+        s.asr_backend = match active { Backend::Gguf => "gguf".into(), Backend::Onnx => "onnx".into() };
+      });
 
       // 降噪模型（可选）
       if let Some(path) = crate::denoise_path(&state.app) {

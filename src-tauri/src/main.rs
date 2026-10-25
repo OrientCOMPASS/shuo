@@ -9,6 +9,7 @@ mod audio;
 mod config;
 mod denoise;
 mod dsp;
+mod gguf_asr;
 mod hotkey;
 mod llm;
 #[cfg(target_os = "linux")]

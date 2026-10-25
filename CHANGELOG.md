@@ -1,5 +1,15 @@
 # Changelog
 
+## 未发布（feat/gguf-1.7b：推理框架迁移 + 1.7B）
+
+### 变更 — ASR 推理框架迁移到 llama.cpp/GGUF（换用 Qwen3-ASR-1.7B）
+- **新后端 `src/gguf_asr.rs`**：llama-cpp-sys-2（=0.1.157，openmp+mtmd）**源码静态链接**进可执行文件（无 DLL/so 伴生），加载官方 `ggml-org/Qwen3-ASR-1.7B-GGUF`（LM+mmproj）；mtmd 音频 tokenize/prefill + 贪心解码 + `language X<asr_text>` 解析；与 ONNX 路径同接口（AsrResult），长音频复用静音切分；原生 C 日志桥接（默认只放行 ERROR，`SHUO_LLAMA_LOG=1` 全量）
+- **双后端调度**：`config.json` 新增 `asr_backend`（auto/onnx/gguf，默认 auto=有 GGUF 模型优先 GGUF）；`models.rs` GGUF 目录探测（`Qwen3-ASR-1.7B-GGUF[-unified]/`，mmproj 前缀约定）；`state.rs` `AsrEngine` 枚举统一调度，加载失败自动回退另一后端；`Status.asr_backend` 上报，UI chip/引擎行显示 ONNX/GGUF
+- **保留**：ort 继续承担降噪模型与 LLM 后处理段（双模型工作流不变）；ONNX ASR 路径完整保留（`asr_backend: "onnx"` 可显式回退）
+- **打包**：deb depends 增加 `libgomp1`（llama.cpp OpenMP）；Windows 运行期依赖 VC++ 2015-2022 运行库（vcomp140）
+- **CI**：ci.yml / release.yml 各腿补 libclang 准备（bindgen）；finetune.yml 新增 `gguf-e2`（LoRA 合并→llama.cpp 官方转换器→Q4_K_M→llama-server 探针，跨 OS 缓存产物）与 `gguf-e2e`（Rust 后端 + 官方 1.7B Q8_0 真实转写 cargo test）
+- **finetune**：新增 `gguf_server_probe.py`（qsa E1/E2 同款探针，context/静音/对照断言，expect=any/latin/cjk）
+
 ## 未发布（main 开发中）
 
 ### 新增 — 单模型直出（微调 Qwen3-ASR，识别 + 提示词优化一步完成）

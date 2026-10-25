@@ -30,6 +30,18 @@ ort = { version = "=2.0.0-rc.13", default-features = false, features = [
   "tls-native",
   "api-27",
 ] }
+# ============================================================================
+# llama.cpp（GGUF 运行时，feat/gguf-1.7b 迁移）：Qwen3-ASR-1.7B 单模型直出主路径。
+# **源码静态链接**进可执行文件（无 llama.dll / ggml*.so 伴生）；mtmd feature 提供
+# 多模态音频路径（bindgen 自动生成 mtmd_* 绑定，qsa 已验证 0.1.157 可用）。
+# 版本 "=" 精确锁定：crate 内嵌 llama.cpp 源码构建，ABI 与 mtmd 头文件强绑定，
+# 升级需同步回归 gguf-e2e。CPU 后端静态编入；ort 保留给降噪模型与 LLM 后处理段。
+# 构建依赖：cmake + C/C++ 编译器 + libclang（bindgen）；CI 各腿的准备步骤见 ci.yml。
+# ============================================================================
+llama-cpp-sys-2 = { version = "=0.1.157", default-features = false, features = [
+  "openmp",
+  "mtmd",
+] }
 # float16 张量（Qwen3.5 的 KV / 卷积状态是 f16）
 half = "2"
 # 麦克风采集（Windows WASAPI / Linux ALSA）

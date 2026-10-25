@@ -167,6 +167,8 @@ python finetune/verify_unified_onnx.py --model-dir models/Qwen3-ASR-0.6B-ONNX-CP
 | `onnx-inspect` | Gate 1：Daumee 包探针（需先有适配器 artifact 的 run id） | ~20 min |
 | `onnx-patch` | Gate 2+3：补丁 + ORT 行为复测 + 基线对照 | ~40 min |
 | `ort-e2e` | 产品运行时：真实包 + `cargo test`（Rust ort 管线带 context） | ~40 min |
+| `gguf-e2` | GGUF 产线（feat/gguf-1.7b）：合并→转换→Q4_K_M→llama-server 探针 | ~60 min |
+| `gguf-e2e` | 产品运行时（GGUF 路线）：Rust 后端 + 官方 1.7B Q8_0 真实转写 cargo test | ~60 min |
 
 产品回归（push 即跑）在 `.github/workflows/ci.yml`：Rust 构建+单测（ubuntu/windows）
 + finetune 脚本纯逻辑校验 + 提示词对表 + UI 语法。

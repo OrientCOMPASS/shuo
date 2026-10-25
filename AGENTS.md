@@ -43,7 +43,8 @@ Two implementations share the same `~/.shuo/` (config.json / history.json / shuo
 | File | Role |
 |------|------|
 | `src/main.rs` | Entry, commands (`bootstrap`/`save_config`/`set_hotkey`/`start_record`/`insert_text`/`list_asr_presets`…), tray, portal app-id registration |
-| `src/asr.rs` | ASR pipeline: mel → conv/transformer encoders → decoder init/step → tokens; `prompt_ids()` 纯函数构造 chat 模板（system 段带 context=单模型直出任务开关）；`unified_preset_prompt()` 预设表（与 `finetune/prompts.py` 逐字对表） |
+| `src/asr.rs` | ASR pipeline (ONNX/ort): mel → conv/transformer encoders → decoder init/step → tokens; `prompt_ids()` 纯函数构造 chat 模板（system 段带 context=单模型直出任务开关）；`unified_preset_prompt()` 预设表（与 `finetune/prompts.py` 逐字对表） |
+| `src/gguf_asr.rs` | ASR pipeline (GGUF/llama.cpp，本分支主路径): llama-cpp-sys-2 静态链接（openmp+mtmd），LM+mmproj 加载、mtmd 音频 tokenize/prefill、贪心解码、`language X<asr_text>` 解析；与 AsrPipeline 同接口（transcribe/transcribe_single → AsrResult） |
 | `src/mel.rs` | Mel filters/log-mel/VAD splitting/AGC — numerically equal to librosa (max diff 2e-5) |
 | `src/llm.rs` | Qwen3.5-2B ONNX post-processing, sampling, Qwen chat template (`<think>`/`</think>`), presets |
 | `src/denoise.rs` | Streaming ONNX denoiser (NFT_960, 48 kHz) |
@@ -53,10 +54,10 @@ Two implementations share the same `~/.shuo/` (config.json / history.json / shuo
 | `src/hotkey_linux.rs` | GlobalShortcuts portal (Wayland, primary) + evdev fallback (X11 / mouse buttons) |
 | `src/typing_windows.rs` | SendInput + `KEYEVENTF_UNICODE` |
 | `src/typing_linux.rs` | uinput virtual keyboard for paste shortcuts (no portal prompt) → RemoteDesktop (persistent restore token, re-request on revoke) → wtype/ydotool/xdotool → clipboard |
-| `src/config.rs` | `~/.shuo/config.json` + history, field-compatible with Python; 单模型直出字段 `single_model_{enabled,preset,prompt}` + `Config::single_model_context()` |
-| `src/models.rs` | Model dir resolution; ASR 槽位优先 `Qwen3-ASR-0.6B-ONNX-CPU-unified/`（`unified.json` 标记），其次基座包 |
-| `src/state.rs` | AppState, loader/worker threads, events `engine-status`/`rec`/`asr`/`final`/`hotkey`; `single_model_enabled` 时 ASR 带 context、跳过 LLM 段，`final` 事件带 `single_model` 标志 |
-| `ui/` | Static frontend (index.html / style.css / app.js / locales)；设置抽屉含「单模型直出」区（开关/预设/自定义提示词）与「直出」状态 chip |
+| `src/config.rs` | `~/.shuo/config.json` + history, field-compatible with Python; 单模型直出字段 `single_model_{enabled,preset,prompt}` + `asr_backend`（auto/onnx/gguf）+ `Config::single_model_context()` |
+| `src/models.rs` | Model dir resolution; ONNX 槽位优先 `Qwen3-ASR-0.6B-ONNX-CPU-unified/`（`unified.json` 标记）；GGUF 槽位 `Qwen3-ASR-1.7B-GGUF[-unified]/`（mmproj 前缀=音频编码器，最大 .gguf=LM）；`pick_backend()`/`unified_for()` |
+| `src/state.rs` | AppState, loader/worker threads, events `engine-status`/`rec`/`asr`/`final`/`hotkey`; `AsrEngine` 双后端（Onnx/Gguf，加载失败自动回退）；`single_model_enabled` 时 ASR 带 context、跳过 LLM 段，`final` 事件带 `single_model` 标志；`Status.asr_backend/asr_unified` |
+| `ui/` | Static frontend (index.html / style.css / app.js / locales)；设置抽屉含「单模型直出」区（开关/预设/自定义提示词）与「直出」状态 chip；ASR chip/引擎行显示后端（ONNX/GGUF） |
 | `linux/70-shuo-hotkey.rules` | udev rules for evdev + uinput (`/dev/uinput` uaccess), installed by deb |
 | `linux/shuo-overlay.py` | XWayland status capsule helper (bottom, always-on-top, no focus); bundled as resource |
 
@@ -76,9 +77,11 @@ Two implementations share the same `~/.shuo/` (config.json / history.json / shuo
 ## Key facts
 
 - **Model dirs in .gitignore:** `Qwen3-ASR-0.6B-ONNX-CPU/`, `Qwen3.5-*-ONNX-OPT/` — must be downloaded separately
-- **Model lookup (Tauri):** config path → `SHUO_MODEL_DIR` (dir containing both model folders) → `~/.shuo/models/` → exe ancestors → cwd ancestors → repo dir → `/usr/lib/Shuo/models`；ASR 槽位先试 `Qwen3-ASR-0.6B-ONNX-CPU-unified/`（微调统一包，`unified.json` 标记）再试基座包名
-- **单模型直出契约**：任务提示词 `finetune/prompts.py` ↔ `src-tauri/src/asr.rs::unified_preset_prompt` **逐字一致**（CI `finetune/check_prompt_sync.py` 强制）；提示词进 chat 模板 system 段（context 通道），基座只当识别偏置，微调统一包才执行指令
-- **CI 布局**：`ci.yml`（push 必跑：rust ubuntu/windows 构建单测 + finetune 脚本纯逻辑校验 + UI 语法）；`finetune.yml`（仅手动：cpu-smoke/real-mini/gpu-train/onnx-inspect/onnx-patch/ort-e2e）；`release.yml`（tag 发版）
+- **Model lookup (Tauri):** config path → `SHUO_MODEL_DIR` (dir containing both model folders) → `~/.shuo/models/` → exe ancestors → cwd ancestors → repo dir → `/usr/lib/Shuo/models`；ASR 两个槽位：ONNX 先试 `Qwen3-ASR-0.6B-ONNX-CPU-unified/` 再试基座包名；GGUF 先试 `Qwen3-ASR-1.7B-GGUF-unified/` 再试 `Qwen3-ASR-1.7B-GGUF/`（目录内 mmproj 前缀 .gguf=音频编码器，其余最大 .gguf=LM）
+- **ASR 后端选择（本分支）：** `asr_backend` 配置 auto/onnx/gguf；auto=有 GGUF 模型优先 GGUF（1.7B 主路径）；显式后端加载失败自动回退另一个（日志说明）；`Status.asr_backend` 上报 UI
+- **llama.cpp 构建依赖：** cmake + C/C++ 编译器 + libclang（bindgen）；Linux 运行期依赖 libgomp1（deb depends 已加）；Windows 运行期依赖 VC++ 2015-2022 运行库（vcomp140，OpenMP）
+- **单模型直出契约**：任务提示词 `finetune/prompts.py` ↔ `src-tauri/src/asr.rs::unified_preset_prompt` **逐字一致**（CI `finetune/check_prompt_sync.py` 强制）；提示词进 chat 模板 system 段（context 通道），基座只当识别偏置，微调统一包才执行指令；GGUF 后端同一契约（`gguf_asr.rs` 的 prompt 模板与 `asr.rs::prompt_ids` 逐 token 同构）
+- **CI 布局**：`ci.yml`（push 必跑：rust ubuntu/windows 构建单测 + finetune 脚本纯逻辑校验 + UI 语法）；`finetune.yml`（仅手动：cpu-smoke/real-mini/gpu-train/onnx-inspect/onnx-patch/ort-e2e/gguf-e2/gguf-e2e）；`release.yml`（tag 发版）
 - **Config at `~/.shuo/config.json`**: hotkey/hotkey_terminal (+ _enabled), language, ASR lang, denoise, auto_type, mic_device, LLM settings, single_model_{enabled,preset,prompt}
 - **Log at `~/.shuo/shuo.log`**: UTF-8, `logger = logging.getLogger("shuo")` (Python) / `log_line()` (Rust)
 - **History at `~/.shuo/history.json`**: max 500 entries, newest first

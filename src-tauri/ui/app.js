@@ -268,8 +268,9 @@ function setChip(el, kind, label) {
 function renderStatus(s) {
   state.status = s || {};
   const asr = state.status;
+  const backend = (asr.asr_backend || "").toUpperCase();
   const asrLabel = asr.asr_ready
-    ? `${t("status.ready")} · ASR`
+    ? `${t("status.ready")} · ASR${backend ? ` (${backend})` : ""}`
     : asr.error
       ? `${t("status.error")} · ASR`
       : `${t("status.loading")} · ASR`;
@@ -325,7 +326,7 @@ function renderStatus(s) {
   $("#record").disabled = !canRecord || state.recording;
 
   const bits = [];
-  if (asr.asr_ready) bits.push("ASR");
+  if (asr.asr_ready) bits.push(backend ? `ASR·${backend}` : "ASR");
   if (asr.llm_ready) bits.push("LLM");
   if (asr.denoise_ready) bits.push(t("settings.denoise"));
   $("#engine-line").textContent = bits.length

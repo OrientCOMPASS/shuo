@@ -51,6 +51,9 @@ fn d_hotkey_terminal() -> String {
 fn d_true() -> bool {
   true
 }
+fn d_asr_backend() -> String {
+  "auto".into()
+}
 fn d_single_preset() -> String {
   crate::asr::UPRESET_POLISH_ZH.into()
 }
@@ -87,6 +90,9 @@ pub struct Config {
   /// 模型目录覆盖（空 = 自动查找）
   pub asr_model_dir: Option<String>,
   pub llm_model_dir: Option<String>,
+  /// ASR 推理后端："auto"（有 GGUF 模型优先 GGUF）/ "onnx" / "gguf"
+  #[serde(default = "d_asr_backend")]
+  pub asr_backend: String,
   /// 主热键开关（关掉后这个键不再触发录音）
   #[serde(default = "d_true")]
   pub hotkey_enabled: bool,
@@ -124,6 +130,7 @@ impl Default for Config {
       start_hidden: false,
       asr_model_dir: None,
       llm_model_dir: None,
+      asr_backend: d_asr_backend(),
       extra: BTreeMap::new(),
     }
   }

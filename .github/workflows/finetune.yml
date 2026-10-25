@@ -26,7 +26,7 @@ on:
         description: "运行模式"
         type: choice
         default: "cpu-smoke"
-        options: [cpu-smoke, real-mini, gpu-train, onnx-inspect, onnx-patch, ort-e2e]
+        options: [cpu-smoke, real-mini, gpu-train, onnx-inspect, onnx-patch, ort-e2e, gguf-e2, gguf-e2e]
       model:
         description: "基座模型"
         type: choice
@@ -52,6 +52,11 @@ on:
         description: "适配器 artifact 名（cpu-smoke 产物=unified-cpu-smoke；real-mini=unified-real-mini）"
         type: string
         default: "unified-cpu-smoke"
+      expect:
+        description: "gguf-e2 探针语言断言（any=只要求出文本[stub 适配器]；latin=直出英文[真实 translate_en 微调]）"
+        type: choice
+        default: "any"
+        options: [any, latin, cjk]
 
 permissions:
   contents: read
@@ -588,3 +593,197 @@ jobs:
             --check-set base --silence-secs 0 --threads 4 \
             --report out/orte2e/base_report.json
           python -c "import json; r=json.load(open('out/orte2e/base_report.json',encoding='utf-8')); t=r['results'][0]['verbatim']['text']; print('TEXT:', t); assert len(t) > 20, '转写太短'"
+
+  # ------------------------------------------------------------------ gguf-e2
+  # GGUF 产线（E2 同款，qsa 已全链路实测）：LoRA 合并回 HF → llama.cpp 官方转换器
+  # （TEXT+MMPROJ 双类）→ LM Q4_K_M + mmproj q8_0 → llama-server 探针（context 通道 /
+  # 静音 / 对照组）。产出可缓存给产品 e2e 复用（跨 OS）。
+  gguf-e2:
+    name: GGUF E2：LoRA 合并→转换→量化→llama-server 探针
+    if: ${{ inputs.mode == 'gguf-e2' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Cache HuggingFace 基座
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-qwen3-asr-${{ env.MODEL_TAG }}-v1
+
+      - name: 安装依赖（torch CPU + qwen-asr + peft）
+        run: |
+          set -e
+          pip install --quiet --upgrade pip
+          pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet qwen-asr peft safetensors numpy soundfile librosa
+
+      - name: 下载 LoRA 适配器 artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.adapter_artifact }}
+          run-id: ${{ inputs.adapter_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: art
+
+      - name: 准备 llama.cpp（源码 pin b11201 + ubuntu 预编译二进制）
+        run: |
+          set -e
+          git clone --depth 1 --branch b11201 https://github.com/ggml-org/llama.cpp llama.cpp
+          pip install --quiet ./llama.cpp/gguf-py
+          if [ -f llama.cpp/requirements/requirements-convert_hf_to_gguf.txt ]; then
+            pip install --quiet -r llama.cpp/requirements/requirements-convert_hf_to_gguf.txt
+          else
+            pip install --quiet transformers sentencepiece protobuf
+          fi
+          # ubuntu 预编译是 .tar.gz（windows 才是 .zip——qsa E2 首跑 404 实测教训）
+          curl -sL --fail --retry 3 -o llama-bin.tar.gz \
+            "https://github.com/ggml-org/llama.cpp/releases/download/b11201/llama-b11201-bin-ubuntu-x64.tar.gz"
+          mkdir -p llama-bin
+          tar -xzf llama-bin.tar.gz -C llama-bin
+          find llama-bin -type f \( -name "llama-quantize" -o -name "llama-server" \)
+          chmod +x $(find llama-bin -type f -name "llama-*")
+
+      - name: 下载中文测试音频
+        run: |
+          curl -sL --fail --retry 3 -o zh.wav "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main/test_wavs/zh.wav"
+          python3 -c "import wave; w=wave.open('zh.wav'); print('zh.wav', w.getnframes()/w.getframerate(), 's')"
+
+      - name: 合并 LoRA 回 HF 基座
+        run: |
+          set -e
+          ADAPTER=art/out/smoke/lora
+          [ -d "$ADAPTER" ] || ADAPTER=art/out/real/lora
+          [ -d "$ADAPTER" ] || ADAPTER=art/out/unified/lora
+          echo "适配器: $ADAPTER"
+          python finetune/merge_lora_hf.py --base "${{ inputs.model }}" \
+            --adapter "$ADAPTER" --out merged/unified
+
+      - name: 转换 GGUF（LM f16 + mmproj q8_0）
+        run: |
+          set -e
+          python llama.cpp/convert_hf_to_gguf.py merged/unified --outfile unified-f16.gguf --outtype f16
+          # b11201 的 --mmproj 按 --outfile 原名落盘（不自动加 mmproj- 前缀，qsa E2 实测）
+          python llama.cpp/convert_hf_to_gguf.py merged/unified --mmproj --outfile mmproj-unified-q8.gguf --outtype q8_0
+          ls -la *.gguf
+
+      - name: 量化 LM 到 Q4_K_M + 体积账
+        run: |
+          set -e
+          Q=$(find llama-bin -type f -name llama-quantize | head -1)
+          "$Q" unified-f16.gguf unified-Q4_K_M.gguf Q4_K_M
+          python3 - <<'PY'
+          import pathlib
+          lm = pathlib.Path("unified-Q4_K_M.gguf").stat().st_size
+          mm = pathlib.Path("mmproj-unified-q8.gguf").stat().st_size
+          gib = (lm + mm) / 2**30
+          print(f"LM Q4_K_M {lm/2**30:.2f} GiB + mmproj {mm/2**30:.2f} GiB = {gib:.2f} GiB")
+          pathlib.Path("out_size.txt").write_text(f"{gib:.3f}\n")
+          PY
+
+      - name: 缓存统一包 GGUF（跨 OS，供后续 e2e 还原）
+        continue-on-error: true   # key 已存在（重跑产线）时 save 会报错，不算失败
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            unified-Q4_K_M.gguf
+            mmproj-unified-q8.gguf
+          key: shuo-unified-gguf-${{ env.MODEL_TAG }}-v1
+          enableCrossOsArchive: true
+
+      - name: 启动 llama-server 并跑探针（context 通道 + 静音 + 对照）
+        run: |
+          set -e
+          S=$(find llama-bin -type f -name llama-server | head -1)
+          "$S" -m unified-Q4_K_M.gguf --mmproj mmproj-unified-q8.gguf --port 8080 --jinja -t 4 -c 4096 \
+            > server.out.log 2> server.err.log &
+          SRV_PID=$!
+          code=0
+          python finetune/gguf_server_probe.py --url http://127.0.0.1:8080 \
+            --audio zh.wav --expect "${{ inputs.expect }}" --check-silence \
+            --out out/gguf/e2_report.json || code=$?
+          kill $SRV_PID 2>/dev/null || true
+          echo "=== server 日志末尾 ==="
+          tail -n 20 server.err.log server.out.log || true
+          exit $code
+
+      - name: 上传 E2 报告
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unified-gguf-e2
+          path: |
+            out/gguf/e2_report.json
+            merge_report.json
+            server.out.log
+            server.err.log
+            out_size.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ----------------------------------------------------------------- gguf-e2e
+  # 产品运行时验证（E1 同款语义）：Rust GGUF 后端（llama-cpp-sys-2 静态链接）加载
+  # 官方 ggml-org/Qwen3-ASR-1.7B-GGUF（Q8_0），对参考 wav 真实转写 + context 冒烟。
+  # 证明「迁移推理框架 + 换 1.7B」的运行时链路在 CI 上端到端可用。
+  gguf-e2e:
+    name: GGUF E2E：Rust 运行时 + 官方 1.7B GGUF 真实转写
+    if: ${{ inputs.mode == 'gguf-e2e' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: 系统依赖（WebKitGTK + libclang for bindgen）
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libssl-dev libxdo-dev librsvg2-dev \
+            libgtk-3-dev libasound2-dev libsoup-3.0-dev pkg-config file
+          if ! ldconfig -p | grep -q libclang; then
+            sudo apt-get install -y -qq libclang-dev clang >/dev/null
+          fi
+          LIBCLANG=$(dirname "$(find /usr/lib -name 'libclang.so*' 2>/dev/null | head -1)")
+          echo "LIBCLANG_PATH=$LIBCLANG" >> "$GITHUB_ENV"
+
+      - name: Cache 官方 1.7B GGUF（Q8_0 LM 2.0GiB + mmproj 0.33GiB）
+        uses: actions/cache@v4
+        with:
+          path: gguf-models
+          key: ggml-qwen3-asr-1.7b-q8-v1
+
+      - name: 下载官方 GGUF（缓存命中则跳过实际下载）
+        run: |
+          set -e
+          pip install --quiet huggingface_hub
+          mkdir -p gguf-models
+          python - <<'PY'
+          from huggingface_hub import hf_hub_download
+          for f in ("Qwen3-ASR-1.7B-Q8_0.gguf", "mmproj-Qwen3-ASR-1.7B-Q8_0.gguf"):
+              p = hf_hub_download("ggml-org/Qwen3-ASR-1.7B-GGUF", f, local_dir="gguf-models")
+              print("下载:", p)
+          PY
+          # 英文参考音频（Daumee 包同款 LibriSpeech 样本，单文件直连下载）
+          curl -sL --fail --retry 3 -o gguf-models/ref_en.wav \
+            "https://huggingface.co/Daumee/Qwen3-ASR-0.6B-ONNX-CPU/resolve/main/test_audio/librispeech_1_1089_1.wav"
+          ls -la gguf-models
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust GGUF 运行时测试（真实模型转写 + context 冒烟）
+        working-directory: src-tauri
+        run: |
+          export SHUO_GGUF_LM="$GITHUB_WORKSPACE/gguf-models/Qwen3-ASR-1.7B-Q8_0.gguf"
+          export SHUO_GGUF_MM="$GITHUB_WORKSPACE/gguf-models/mmproj-Qwen3-ASR-1.7B-Q8_0.gguf"
+          export SHUO_GGUF_WAV="$GITHUB_WORKSPACE/gguf-models/ref_en.wav"
+          cargo test --release gguf -- --nocapture --test-threads 1

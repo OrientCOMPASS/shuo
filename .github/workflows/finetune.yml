@@ -61,6 +61,10 @@ on:
         description: "gguf-publish 用：产出 shuo-unified-gguf-* artifact 的 gguf-e2 run id"
         type: string
         default: ""
+      asr_ratio:
+        description: "real-mini verbatim 样本占比（任务数多时调低增密度：4 任务建议 0.25）"
+        type: string
+        default: "0.35"
 
 permissions:
   contents: read
@@ -272,7 +276,7 @@ jobs:
           python finetune/prepare_data.py \
             --source fleurs --fleurs-lang cmn_hans_cn --limit 100 --eval-limit 20 --max-audio-secs 15 \
             --optimizer table --table finetune/table_zh.tsv --skip-unoptimized \
-            --tasks "${{ inputs.tasks }}" --asr-ratio 0.35 --silence-samples 20 \
+            --tasks "${{ inputs.tasks }}" --asr-ratio ${{ inputs.asr_ratio }} --silence-samples 20 \
             --audio-dir data/audio --out data/train.jsonl --eval-out data/eval.jsonl
           echo "训练集 $(wc -l < data/train.jsonl) 条 / 评测集 $(wc -l < data/eval.jsonl) 条"
           python - <<'PY'

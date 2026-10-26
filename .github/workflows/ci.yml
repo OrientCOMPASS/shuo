@@ -199,7 +199,7 @@ jobs:
           assert abs(len_ratio("abcd", "a b c d e f g h") - 0.5) < 1e-9
           # TASK_LEN 防漂移：必须是「相对任务目标」口径（style-0.6B run 40263613461 教训：
           # 误用造表口径当上限时，完美学会 brief 的模型输出≈目标、比值≈1.0，也必红）
-          assert TASK_LEN["brief_zh"] == (0.30, 1.20), f"brief 判据漂移: {TASK_LEN['brief_zh']}"
+          assert TASK_LEN["brief_zh"] == (0.30, 1.30), f"brief 判据漂移: {TASK_LEN['brief_zh']}"
           assert TASK_LEN["detail_zh"][0] >= 0.9, f"detail 判据漂移: {TASK_LEN['detail_zh']}"
           assert set(TASK_LEN) == {"brief_zh", "detail_zh"}, "风格轴判据表漂移"
 

@@ -190,14 +190,17 @@ jobs:
           from eval_unified import len_ratio, TASK_LEN
           src_long = "尽管受到这些指责马英九在一次演讲中主张与中国大陆建立更加紧密的联系并轻松获胜"
           br = opt("brief_zh", src_long)
-          lo, hi = TASK_LEN["brief_zh"]
           assert br.endswith("。"), f"brief stub 应以句号收尾: {br!r}"
-          assert len_ratio(br, src_long) <= hi, f"brief stub 不够短: {len_ratio(br, src_long)}"
+          assert len_ratio(br, src_long) <= 0.75, f"brief stub 不够短（相对源文，造表口径）: {len_ratio(br, src_long)}"
           de = opt("detail_zh", src_long)
           assert de.endswith("。") and len_ratio(de, src_long) >= 0.9, f"detail stub 应完整: {de!r}"
           assert opt("brief_zh", src_long) == br, "brief stub 必须确定性"
           # len_ratio 去空白口径（FLEURS 字符流转写下的唯一公平比法）
           assert abs(len_ratio("abcd", "a b c d e f g h") - 0.5) < 1e-9
+          # TASK_LEN 防漂移：必须是「相对任务目标」口径（style-0.6B run 40263613461 教训：
+          # 误用造表口径当上限时，完美学会 brief 的模型输出≈目标、比值≈1.0，也必红）
+          assert TASK_LEN["brief_zh"] == (0.30, 1.20), f"brief 判据漂移: {TASK_LEN['brief_zh']}"
+          assert TASK_LEN["detail_zh"][0] >= 0.9, f"detail 判据漂移: {TASK_LEN['detail_zh']}"
           assert set(TASK_LEN) == {"brief_zh", "detail_zh"}, "风格轴判据表漂移"
 
           # --- 静音样本：前 4 条 2.0s，覆盖 零/噪 × 带/不带 prompt ---

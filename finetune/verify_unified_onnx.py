@@ -290,10 +290,10 @@ def main() -> int:
     import numpy as np
 
     model_dir = Path(args.model_dir)
-    unified = (model_dir / "unified.json").is_file()
-    log(f"模型目录: {model_dir}（unified.json {'存在' if unified else '不存在'}）check-set={args.check_set}")
+    unified = (model_dir / "shuo-model.json").is_file()
+    log(f"模型目录: {model_dir}（shuo-model.json {'存在' if unified else '不存在'}）check-set={args.check_set}")
     if args.check_set == "unified" and not unified:
-        log("!! check-set=unified 但目录没有 unified.json 标记——按 base 语义降级判定")
+        log("!! check-set=unified 但目录没有 shuo-model.json 标记——按 base 语义降级判定")
 
     t0 = time.time()
     asr = OrtAsr(model_dir, args.threads)

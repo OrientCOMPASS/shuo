@@ -280,7 +280,7 @@ fn spawn_loader(state: Arc<AppState>) {
         state.set_status(|s| {
           s.loading = false;
           s.error = Some(format!(
-            "找不到 ASR 模型（ONNX：Qwen3-ASR-0.6B-ONNX-CPU[-unified]，GGUF：Qwen3-ASR-1.7B-GGUF[-unified]）。已尝试：\n{}",
+            "找不到 ASR 模型（ONNX：Qwen3-ASR-0.6B-ONNX-CPU[-tuned]，GGUF：Qwen3-ASR-1.7B-GGUF[-tuned]）。已尝试：\n{}",
             paths.tried.join("\n")
           ));
         });
@@ -348,7 +348,7 @@ fn spawn_loader(state: Arc<AppState>) {
       ));
       if !unified && !cfg.single_model_context().is_empty() {
         crate::log_line(
-          "提示：当前模型包不是微调统一包（缺 unified.json），优化提示词只会作为识别偏置，\
+          "提示：当前模型包不是微调包（缺 shuo-model.json），优化提示词只会作为识别偏置，\
            不会执行文本优化；选「逐字转写」预设可完全消除偏置，统一包产线见 finetune/README.md",
         );
       }
@@ -472,7 +472,7 @@ fn transcribe(
   };
 
   // 单模型直出：用户提示词进 chat 模板 system 段（context 通道），识别即优化。
-  // `verbatim` 预设 = 空 context = 原生逐字转写。基座包（无 unified.json）上
+  // `verbatim` 预设 = 空 context = 原生逐字转写。基座包（无 shuo-model.json）上
   // 提示词只作识别偏置，功能不炸（日志已在加载时提示一次）。
   let context = cfg.single_model_context();
 

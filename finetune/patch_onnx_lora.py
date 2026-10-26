@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate 2 补丁器：把 LoRA ΔW 合并进 Daumee int8 ONNX 包，产出 unified 单模型直出目录。
+"""Gate 2 补丁器：把 LoRA ΔW 合并进 Daumee int8 ONNX 包，产出微调模型包目录。
 
 移植自 Qwen3-subtitle-assistant 的 finetune/patch_onnx_lora.py（在 k2-fsa 官方 int8
 包上实测 250/250 张量补丁成功、sherpa-onnx 运行时三项行为验证全过）。针对 shuo 的
@@ -21,14 +21,14 @@ Daumee/Qwen3-ASR-0.6B-ONNX-CPU 包做了三处布局适配：
   2. 逐模块补丁：q' = clip(round((dequant(q) + ΔW_onnx摆位)/s + z), lo, hi)；
      fp32 张量直接加；
   3. 自检：补丁后反量化 vs 目标值，逐元素误差应 <= 0.51*step（未削顶处）；
-  4. 其余文件字节级复制；写 `unified.json` 标记（shuo 运行时据此识别统一包，
+  4. 其余文件字节级复制；写 `shuo-model.json` 标记（shuo 运行时据此识别微调包，
      见 src-tauri/src/models.rs），输出完整模型目录。
 
 用法（CI：finetune.yml mode=onnx-patch；本地亦可跑）：
   python finetune/patch_onnx_lora.py \
       --model-dir models/Qwen3-ASR-0.6B-ONNX-CPU \
       --hf-model Qwen/Qwen3-ASR-0.6B --adapter art/out/real/lora \
-      --out-dir models/Qwen3-ASR-0.6B-ONNX-CPU-unified \
+      --out-dir models/Qwen3-ASR-0.6B-ONNX-CPU-tuned \
       --report out/patch/patch_report.json
 """
 
@@ -224,11 +224,11 @@ def main() -> int:
                 continue  # 上一步已落盘的（未补丁 onnx 的 .data 等）不覆盖
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(p, dest)
-        # unified.json 标记：shuo 运行时识别统一包的依据（src-tauri/src/models.rs）
+        # shuo-model.json 标记：shuo 运行时识别微调包的依据（src-tauri/src/models.rs）
         from prompts import all_prompts
 
         marker = {
-            "kind": "shuo-unified-asr",
+            "kind": "shuo-model",
             "base_package": str(model_dir),
             "base_hf_model": args.hf_model,
             "adapter": args.adapter,
@@ -238,10 +238,10 @@ def main() -> int:
             "files": report["files"],
             "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
-        (out_dir / "unified.json").write_text(
+        (out_dir / "shuo-model.json").write_text(
             json.dumps(marker, ensure_ascii=False, indent=2), encoding="utf-8")
         n_onnx_out = len(list((out_dir / rel_root).glob("*.onnx")))
-        log(f"输出目录 {out_dir}: onnx {n_onnx_out} 个 + unified.json + 其余文件已复制")
+        log(f"输出目录 {out_dir}: onnx {n_onnx_out} 个 + shuo-model.json + 其余文件已复制")
 
     clips = [rec["clip_frac"] for rec in report["patched_modules"] if rec["quantized"]]
     bads = sum(rec["selfcheck_bad_elems"] for rec in report["patched_modules"])

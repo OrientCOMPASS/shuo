@@ -9,7 +9,7 @@
 // 单模型直出（context 通道）：chat 模板 system 段可携带用户提示词（`context`）。
 // 基座模型只把它当识别先验/热词偏置（Qwen3-ASR 被刻意训练成不遵循 prompt 里的
 // 自然语言指令）；配合 `finetune/` 微调 + ONNX 补丁产出的 unified 模型包
-// （目录带 `unified.json` 标记），同一套权重即可「语音识别 + 按提示词优化文本」
+// （目录带 `shuo-model.json` 标记），同一套权重即可「语音识别 + 按提示词优化文本」
 // 一步直出，无需 LLM 后处理。训练与推理的模板逐 token 一致（见
 // `finetune/README.md` 与 `prompt_ids` 单测）。
 //

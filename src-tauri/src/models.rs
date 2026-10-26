@@ -9,8 +9,8 @@
 //   6. Linux 安装包资源目录 /usr/lib/<product>/models
 //
 // ASR 槽位认两种目录名（先统一包后基座包）：
-//   * `Qwen3-ASR-0.6B-ONNX-CPU-unified/` —— finetune/ 产线（LoRA → int8 ONNX 补丁）
-//     输出的「单模型直出」包：目录带 `unified.json` 标记，system 段提示词会被
+//   * `Qwen3-ASR-0.6B-ONNX-CPU-tuned/` —— finetune/ 产线（LoRA → int8 ONNX 补丁）
+//     输出的微调包：目录带 `shuo-model.json` 标记，system 段提示词会被
 //     模型当任务指令执行（识别 + 文本优化一步直出）；
 //   * `Qwen3-ASR-0.6B-ONNX-CPU/`         —— Daumee 基座包（提示词只作识别偏置）。
 // 两种布局完全相同（onnx_models/ + tokenizer.json），运行时可无缝切换。
@@ -22,15 +22,15 @@ use std::path::{Path, PathBuf};
 use crate::config::Config;
 
 pub const ASR_DIR_NAME: &str = "Qwen3-ASR-0.6B-ONNX-CPU";
-pub const ASR_DIR_NAME_UNIFIED: &str = "Qwen3-ASR-0.6B-ONNX-CPU-unified";
+pub const ASR_DIR_NAME_UNIFIED: &str = "Qwen3-ASR-0.6B-ONNX-CPU-tuned";
 /// GGUF 后端（llama.cpp）模型目录：官方 ggml-org/Qwen3-ASR-1.7B-GGUF 原样解压，
-/// 或 finetune gguf-e2 产线的统一包（*-unified，带 unified.json 标记）。
+/// 或 finetune gguf-e2 产线的微调包（*-tuned，带 shuo-model.json 标记）。
 /// 目录内 `mmproj` 前缀的 .gguf 是音频编码器，其余最大的 .gguf 是 LM
 /// （qsa 的自动发现约定，官方/E2 两种命名都兼容）。
 pub const GGUF_DIR_NAME: &str = "Qwen3-ASR-1.7B-GGUF";
-pub const GGUF_DIR_NAME_UNIFIED: &str = "Qwen3-ASR-1.7B-GGUF-unified";
+pub const GGUF_DIR_NAME_UNIFIED: &str = "Qwen3-ASR-1.7B-GGUF-tuned";
 /// 统一包标记文件（patch_onnx_lora.py / gguf-e2 产线写入：基座、适配器、提示词集、时间戳）
-pub const UNIFIED_MARKER: &str = "unified.json";
+pub const UNIFIED_MARKER: &str = "shuo-model.json";
 
 /// GGUF 模型对（LM + mmproj 音频编码器）
 #[derive(Debug, Clone)]
@@ -49,7 +49,7 @@ pub enum Backend {
 #[derive(Debug, Clone)]
 pub struct ModelPaths {
   pub asr: Option<PathBuf>,
-  /// 解析到的 ASR 目录是否为统一包（带 unified.json，提示词可当任务指令）
+  /// 解析到的 ASR 目录是否为微调包（带 shuo-model.json，提示词可当任务指令）
   pub asr_unified: bool,
   /// GGUF 模型对（llama.cpp 后端用）
   pub gguf: Option<GgufPaths>,

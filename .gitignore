@@ -1,7 +1,9 @@
 Qwen3-ASR-0.6B-ONNX-CPU
 Qwen3-ASR-0.6B-ONNX-CPU-unified
+Qwen3-ASR-0.6B-ONNX-CPU-tuned
 Qwen3-ASR-1.7B-GGUF
 Qwen3-ASR-1.7B-GGUF-unified
+Qwen3-ASR-1.7B-GGUF-tuned
 Qwen3.5-2B-ONNX-OPT
 models/
 

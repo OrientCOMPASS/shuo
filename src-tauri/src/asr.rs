@@ -70,7 +70,7 @@ pub fn unified_preset_prompt(key: &str) -> Option<&'static str> {
   })
 }
 
-/// (key, 中文名, 英文名)——前端下拉框展示用（与 llm::preset_list 同构）。
+/// (key, 中文名, 英文名)——前端下拉框展示用。
 pub fn unified_preset_list() -> Vec<(&'static str, &'static str, &'static str)> {
   vec![
     (UPRESET_VERBATIM, "逐字转写（不优化）", "Verbatim (no polish)"),

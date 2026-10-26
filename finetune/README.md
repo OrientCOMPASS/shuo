@@ -1,8 +1,9 @@
 # Qwen3-ASR「单模型直出」微调产线（识别 + 提示词驱动文本优化）
 
 目标：把 Qwen3-ASR（AuT 音频编码器来自 Qwen3-Omni，LM 为 Qwen3 解码器）微调成
-**一个模型完成语音识别 + 按用户提示词优化文本**，替代现有「ASR(0.6B) → LLM(2B)
-后处理」双模型管线。方法论与全部关键结论移植自
+**一个模型完成语音识别 + 按用户提示词优化文本**，替代「ASR → LLM(2B) 后处理」
+双模型管线（main 分支保留双模型可切换；**本分支 feat/gguf-1.7b 已把独立 LLM
+后处理段整体移除，应用收敛为单模型一条路径**，qsa E3 同款手术）。方法论与全部关键结论移植自
 [Qwen3-subtitle-assistant](https://github.com/OrientCOMPASS/Qwen3-subtitle-assistant)
 （下称 qsa）的 S2TT 实验线——该仓库已在 CI 全链路实测：LoRA 微调 → 任务开关成立
 （带 prompt 直出目标语言、不带 prompt 仍转写、静音双模式为空）→ int8 ONNX 权重
@@ -64,21 +65,24 @@ brief 承担；口语数据上两者才真正分化。
 | `patch_onnx_lora.py` | Gate 2 补丁器：ΔW 写回 Daumee 包 → `*-unified/` 目录 + `unified.json` 标记 |
 | `verify_unified_onnx.py` | Gate 3 复测：onnxruntime 上验证补丁包行为（与 src-tauri/src/asr.rs 同构管线，支持 context） |
 
-## 运行时集成（main 分支，ORT 路线）
+## 运行时集成
 
 ```
-录音 → mel → encoder → prompt（system 段带任务提示词）→ decoder 贪心 → language X<asr_text>正文
-                                                              └─ single_model_enabled=true 时到此为止（跳过 LLM）
+录音 → （降噪，可选）→ ASR 引擎（system 段带任务提示词）→ language X<asr_text>正文
+        GGUF 后端: mtmd 音频编码 + 贪心解码（本分支主路径，1.7B）        └─ 正文即最终文本
+        ONNX 后端: mel → encoder → decoder 贪心（main 分支 / 0.6B 后备）
 ```
 
-* `~/.shuo/config.json` 新字段：`single_model_enabled` / `single_model_preset` /
-  `single_model_prompt`（旧配置无这些字段时取默认值，来回切换不丢配置）；
-* 模型目录解析优先 `Qwen3-ASR-0.6B-ONNX-CPU-unified/`（补丁产物，带
-  `unified.json`），其次基座包 `Qwen3-ASR-0.6B-ONNX-CPU/`；两者布局相同，
-  运行时零改动加载。基座包上开单模型直出不会报错——提示词退化为识别偏置，
-  日志会提示"当前不是统一包"；
-* UI（设置 → 单模型直出）：开关 + 任务预设 + 自定义提示词；顶栏出现「直出」chip，
-  LLM chip 熄灭（LLM 段被跳过）。
+* `~/.shuo/config.json`：`single_model_preset` / `single_model_prompt`（本分支起
+  **无 enable 开关**——单模型是唯一路径，`verbatim` 预设 = 空 context = 旧「不优化」
+  行为；旧配置的废弃字段经 `extra` flatten 原样保留）；
+* 模型目录解析：GGUF 槽位优先 `Qwen3-ASR-1.7B-GGUF-unified/`（gguf-e2 产物，带
+  `unified.json`），其次官方基座 `Qwen3-ASR-1.7B-GGUF/`；ONNX 槽位同理
+  （`Qwen3-ASR-0.6B-ONNX-CPU[-unified]/`）。`asr_backend`：auto（默认，有 GGUF
+  优先 GGUF）/ onnx / gguf，所选后端缺模型自动回退另一个；
+* 基座包上运行不会报错——提示词退化为识别偏置，日志会提示"当前不是统一包"；
+* UI（设置 → 单模型直出）：任务预设 + 自定义提示词 + 包状态提示；顶栏「直出」chip
+  常显（绿=统一包 / 黄=基座包），ASR chip 与引擎行显示当前后端（GGUF/ONNX）。
 
 ## 跑法
 

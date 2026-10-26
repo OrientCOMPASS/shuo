@@ -1,6 +1,6 @@
 // 说 · Shuo — 模型目录解析
 //
-// 打包后模型不进安装包（ASR 2.5 GB + LLM 1.4 GB），按以下顺序查找：
+// 打包后模型不进安装包（ONNX ASR 约 2.5 GB / GGUF 1.7B 约 2.4 GB），按以下顺序查找：
 //   1. 配置里的显式路径
 //   2. 环境变量 SHUO_MODEL_DIR（目录下放两个模型文件夹）
 //   3. ~/.shuo/models/
@@ -23,7 +23,6 @@ use crate::config::Config;
 
 pub const ASR_DIR_NAME: &str = "Qwen3-ASR-0.6B-ONNX-CPU";
 pub const ASR_DIR_NAME_UNIFIED: &str = "Qwen3-ASR-0.6B-ONNX-CPU-unified";
-pub const LLM_DIR_NAME: &str = "Qwen3.5-2B-ONNX-OPT";
 /// GGUF 后端（llama.cpp）模型目录：官方 ggml-org/Qwen3-ASR-1.7B-GGUF 原样解压，
 /// 或 finetune gguf-e2 产线的统一包（*-unified，带 unified.json 标记）。
 /// 目录内 `mmproj` 前缀的 .gguf 是音频编码器，其余最大的 .gguf 是 LM
@@ -56,7 +55,6 @@ pub struct ModelPaths {
   pub gguf: Option<GgufPaths>,
   /// GGUF 目录是否为统一包
   pub gguf_unified: bool,
-  pub llm: Option<PathBuf>,
   /// 已尝试过的路径（诊断用）
   pub tried: Vec<String>,
 }
@@ -95,10 +93,6 @@ pub fn gguf_scan(dir: &Path) -> Option<GgufPaths> {
   Some(GgufPaths { lm: lm?.1, mmproj: mm?.1 })
 }
 
-pub fn llm_ok(dir: &Path) -> bool {
-  crate::llm::LlmPipeline::is_available(dir)
-}
-
 fn candidates(kinds: &[&str], explicit: Option<&str>) -> Vec<PathBuf> {
   let mut out = Vec::new();
   if let Some(p) = explicit.map(str::trim).filter(|p| !p.is_empty()) {
@@ -109,7 +103,7 @@ fn candidates(kinds: &[&str], explicit: Option<&str>) -> Vec<PathBuf> {
       for kind in kinds {
         out.push(p.join(kind));
       }
-      // 显式路径本身就是一个可用模型目录（asr_ok/llm_ok 兜底判定）
+      // 显式路径本身就是一个可用模型目录（asr_ok/gguf_scan 兜底判定）
       out.push(p);
     }
   }
@@ -186,15 +180,7 @@ pub fn resolve(cfg: &Config) -> ModelPaths {
     .as_ref()
     .and_then(|g| g.lm.parent())
     .is_some_and(is_unified);
-  let mut llm = None;
-  for c in candidates(&[LLM_DIR_NAME], cfg.llm_model_dir.as_deref()) {
-    if llm_ok(&c) {
-      llm = Some(c);
-      break;
-    }
-    tried.push(c.display().to_string());
-  }
-  ModelPaths { asr, asr_unified, gguf, gguf_unified, llm, tried }
+  ModelPaths { asr, asr_unified, gguf, gguf_unified, tried }
 }
 
 /// 后端选择："auto" = 有 GGUF 模型优先 GGUF（1.7B 主路径），否则 ONNX；
@@ -241,6 +227,5 @@ pub fn describe(paths: &ModelPaths) -> String {
       format!("{} + {}{tag}", g.lm.display(), g.mmproj.display())
     })
     .unwrap_or_else(|| "未找到".into());
-  let l = paths.llm.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "未找到".into());
-  format!("ASR(ONNX)：{a}\nASR(GGUF)：{g}\nLLM：{l}")
+  format!("ASR(ONNX)：{a}\nASR(GGUF)：{g}")
 }

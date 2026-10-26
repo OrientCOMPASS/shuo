@@ -24,7 +24,6 @@ serde_json = "1"
 # ONNX 推理（构建时下载 onnxruntime 并把动态库复制到产物旁）
 ort = { version = "=2.0.0-rc.13", default-features = false, features = [
   "std",
-  "half",
   "download-binaries",
   "copy-dylibs",
   "tls-native",
@@ -42,8 +41,6 @@ llama-cpp-sys-2 = { version = "=0.1.157", default-features = false, features = [
   "openmp",
   "mtmd",
 ] }
-# float16 张量（Qwen3.5 的 KV / 卷积状态是 f16）
-half = "2"
 # 麦克风采集（Windows WASAPI / Linux ALSA）
 cpal = "0.18"
 # 重采样（录音设备原生采样率 → 16 kHz）

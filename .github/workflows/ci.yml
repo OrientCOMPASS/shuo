@@ -246,13 +246,24 @@ jobs:
           sys.exit(0 if r.returncode == 0 else 1)
           PY
 
-      - name: UI 语法（app.js / locales JSON / index.html 新控件存在）
+      - name: UI 语法（app.js / locales JSON / 单模型控件在场 / LLM 控件已退役）
         run: |
           set -e
           node --check src-tauri/ui/app.js
           for f in src-tauri/ui/locales/*.json; do python -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$f"; done
-          grep -q 'id="chk-single"' src-tauri/ui/index.html
+          # 单模型直出控件必须在场
           grep -q 'id="sel-single-preset"' src-tauri/ui/index.html
+          grep -q 'id="single-prompt"' src-tauri/ui/index.html
           grep -q 'id="chip-single"' src-tauri/ui/index.html
           grep -q 'list_asr_presets' src-tauri/ui/app.js
+          # 双模型工作流已移除：LLM 控件/命令/模块必须全部 absent（防止回潮）
+          ! grep -q 'id="chk-llm"' src-tauri/ui/index.html
+          ! grep -q 'id="chip-llm"' src-tauri/ui/index.html
+          ! grep -q 'id="llm-prompt"' src-tauri/ui/index.html
+          ! grep -q 'id="dir-llm"' src-tauri/ui/index.html
+          ! grep -q 'id="meta-llm"' src-tauri/ui/index.html
+          ! grep -q 'llm_enabled\|get_custom_prompts\|list_presets\b' src-tauri/ui/app.js
+          test ! -f src-tauri/src/llm.rs
+          ! grep -q '^mod llm;' src-tauri/src/main.rs
+          ! grep -rq 'LlmPipeline' src-tauri/src/
           echo "UI_OK"

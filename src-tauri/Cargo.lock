@@ -4105,7 +4105,6 @@ dependencies = [
  "cpal",
  "enumflags2",
  "futures-lite",
- "half",
  "libc",
  "llama-cpp-sys-2",
  "ort",

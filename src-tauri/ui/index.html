@@ -57,8 +57,7 @@
 
       <div class="chips" id="chips">
         <span class="chip" id="chip-asr" title="ASR"><i class="dot"></i><span>ASR</span></span>
-        <span class="chip" id="chip-single" title="Single-model" hidden><i class="dot"></i><span>直出</span></span>
-        <span class="chip" id="chip-llm" title="LLM"><i class="dot"></i><span>LLM</span></span>
+        <span class="chip" id="chip-single" title="Single-model"><i class="dot"></i><span>直出</span></span>
         <span class="chip" id="chip-denoise"><i class="dot"></i><span data-i18n="settings.denoise">降噪</span></span>
       </div>
 
@@ -112,7 +111,7 @@
           <div class="card accent" id="card-final">
             <header class="card-head">
               <h3 data-i18n="result.final">整理结果</h3>
-              <span class="badge" id="meta-llm"></span>
+              <span class="badge" id="meta-final"></span>
               <button class="icon-btn sm" id="btn-copy" data-i18n-title="btn.copy" title="复制" disabled>
                 <svg><use href="#i-copy"/></svg>
               </button>
@@ -198,47 +197,17 @@
       <section class="group">
         <h3 class="group-title"><span data-i18n="settings.single">单模型直出</span></h3>
         <div class="row">
-          <label data-i18n="settings.single_enable">启用（微调统一模型）</label>
-          <label class="switch"><input type="checkbox" id="chk-single" /><i></i></label>
-        </div>
-        <div class="row">
           <label data-i18n="settings.single_preset">优化提示词</label>
           <select id="sel-single-preset"></select>
         </div>
         <textarea id="single-prompt" rows="3" spellcheck="false" hidden></textarea>
         <p class="hint" id="single-model-state"></p>
-        <p class="hint" data-i18n="settings.single_hint">微调统一模型按提示词一步直出优化文本（识别+整理），不再经过 LLM。需要 unified 模型包（finetune/ 产线）；基座包上提示词仅作识别偏置。</p>
-      </section>
-
-      <section class="group">
-        <h3 class="group-title"><span data-i18n="settings.llm">LLM 后处理</span></h3>
-        <div class="row">
-          <label data-i18n="settings.llm_enable">启用 LLM</label>
-          <label class="switch"><input type="checkbox" id="chk-llm" /><i></i></label>
-        </div>
-        <div class="row">
-          <label data-i18n="settings.llm_preset">提示词预设</label>
-          <select id="sel-preset"></select>
-        </div>
-        <div class="row">
-          <label data-i18n="settings.llm_saved">我的提示词</label>
-          <div class="row-controls">
-            <select id="sel-custom"></select>
-            <button class="btn sm" id="btn-apply-custom" data-i18n="btn.apply">应用</button>
-          </div>
-        </div>
-        <textarea id="llm-prompt" rows="7" spellcheck="false"></textarea>
-        <div class="row-controls end">
-          <input class="input sm" id="custom-name" data-i18n-placeholder="settings.prompt_name" placeholder="提示词名称" />
-          <button class="btn sm" id="btn-save-custom" data-i18n="btn.save_as">另存为</button>
-        </div>
-        <p class="hint" data-i18n="settings.llm_hint">LLM 会把口语转成书面文本（补标点、去口癖）。关闭时直接输出 ASR 原文。</p>
+        <p class="hint" data-i18n="settings.single_hint">微调统一模型按提示词一步直出优化文本（识别+整理）。需要 unified 模型包（finetune/ 产线）；基座包上提示词仅作识别偏置，选「逐字转写」可完全消除偏置。</p>
       </section>
 
       <section class="group">
         <h3 class="group-title"><span data-i18n="settings.engine">模型与引擎</span></h3>
         <div class="kv"><span>ASR</span><code id="dir-asr">—</code></div>
-        <div class="kv"><span>LLM</span><code id="dir-llm">—</code></div>
         <div class="row-controls end">
           <button class="btn sm" id="btn-reload" data-i18n="btn.reload">重新加载</button>
           <button class="btn sm" id="btn-open-dir" data-i18n="btn.open_config">打开配置目录</button>

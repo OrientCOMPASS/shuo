@@ -11,7 +11,6 @@ mod denoise;
 mod dsp;
 mod gguf_asr;
 mod hotkey;
-mod llm;
 #[cfg(target_os = "linux")]
 mod overlay_linux;
 mod mel;
@@ -247,7 +246,6 @@ fn save_config(
     || current.hotkey_terminal != next.hotkey_terminal
     || current.hotkey_enabled != next.hotkey_enabled
     || current.hotkey_terminal_enabled != next.hotkey_terminal_enabled;
-  let llm_turned_on = !current.llm_enabled && next.llm_enabled;
   if mic_changed {
     if let Err(e) = state.inner().restart_recorder() {
       return Err(e);
@@ -256,7 +254,7 @@ fn save_config(
   if hotkey_changed {
     state.inner().start_hotkey();
   }
-  if llm_turned_on || current.asr_model_dir != next.asr_model_dir || current.llm_model_dir != next.llm_model_dir {
+  if current.asr_model_dir != next.asr_model_dir || current.asr_backend != next.asr_backend {
     state.inner().reload_models();
   }
   Ok(next)
@@ -317,14 +315,6 @@ fn clear_history(state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
   Ok(())
 }
 
-#[tauri::command]
-fn list_presets() -> Vec<PresetInfo> {
-  llm::preset_list()
-    .into_iter()
-    .map(|(key, zh, en)| PresetInfo { key, name_zh: zh, name_en: en })
-    .collect()
-}
-
 /// 单模型直出的提示词预设（进 ASR chat 模板 system 段，与 finetune/prompts.py 对表）
 #[tauri::command]
 fn list_asr_presets() -> Vec<PresetInfo> {
@@ -344,27 +334,6 @@ struct PresetInfo {
   key: &'static str,
   name_zh: &'static str,
   name_en: &'static str,
-}
-
-#[tauri::command]
-fn get_prompt() -> String {
-  config::default_prompt()
-}
-
-/// 取某个预设的提示词全文（前端设置页展示用）
-#[tauri::command]
-fn get_preset_prompt(key: String) -> String {
-  llm::preset_prompt(&key).unwrap_or("").to_string()
-}
-
-#[tauri::command]
-fn get_custom_prompts() -> std::collections::BTreeMap<String, String> {
-  llm::load_custom_prompts()
-}
-
-#[tauri::command]
-fn save_custom_prompts(prompts: std::collections::BTreeMap<String, String>) -> Result<(), String> {
-  llm::save_custom_prompts(&prompts)
 }
 
 #[tauri::command]
@@ -464,13 +433,8 @@ fn main() {
       copy_text,
       get_history,
       clear_history,
-      list_presets,
       list_asr_presets,
       get_asr_preset_prompt,
-      get_prompt,
-      get_preset_prompt,
-      get_custom_prompts,
-      save_custom_prompts,
       restart_recorder,
       reload_engine,
       open_user_dir,

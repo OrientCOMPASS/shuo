@@ -2,8 +2,8 @@
 //
 // 与 Rust 端约定：
 //   命令：bootstrap / save_config / set_hotkey / start_record / stop_record
-//        / copy_text / list_mics / list_presets / get_preset_prompt
-//        / get_custom_prompts / save_custom_prompts / get_history / clear_history
+//        / copy_text / list_mics / list_asr_presets / get_asr_preset_prompt
+//        / get_history / clear_history
 //        / restart_recorder / reload_engine / open_user_dir / open_log / hide_window / quit_app
 //   事件：engine-status / rec / processing / asr / final / asr-error / notice / hotkey / recorder
 //
@@ -28,25 +28,16 @@ const EXTRA = {
     "btn.copy": "Copy",
     "btn.record_key": "Record",
     "btn.refresh": "Refresh",
-    "btn.apply": "Apply",
-    "btn.save_as": "Save as",
     "btn.reload": "Reload",
     "btn.open_config": "Open config folder",
     "btn.open_log": "Open log",
     "settings.hotkey_key": "Global hotkey (Ctrl+V paste)",
     "settings.hotkey_terminal_key": "Terminal hotkey (Ctrl+Shift+V paste)",
     "settings.hotkey_tip": "Hold to talk: press to start, release to stop. The two hotkeys are independent and can be switched off separately.",
-    "settings.llm": "LLM post-processing",
-    "settings.llm_enable": "Enable LLM",
-    "settings.llm_preset": "Prompt preset",
-    "settings.llm_saved": "My prompts",
-    "settings.llm_custom": "Custom prompt",
-    "settings.prompt_name": "Prompt name",
-    "settings.llm_hint": "The LLM turns spoken words into written text (punctuation, filler removal). When off, the raw ASR text is used.",
     "settings.single": "Single-model output",
-    "settings.single_enable": "Enable (fine-tuned unified model)",
     "settings.single_preset": "Optimization prompt",
-    "settings.single_hint": "The fine-tuned unified model applies the prompt while transcribing (recognition + polish in one pass); the LLM stage is skipped. Requires a unified model package (finetune/ pipeline); on the base package the prompt only biases recognition.",
+    "settings.single_custom": "Custom prompt",
+    "settings.single_hint": "The fine-tuned unified model applies the prompt while transcribing (recognition + polish in one pass). Requires a unified model package (finetune/ pipeline); on the base package the prompt only biases recognition — pick Verbatim for zero bias.",
     "settings.single_state_unified": "Unified package detected — prompts are executed as instructions.",
     "settings.single_state_base": "Base package (no unified.json) — prompt only biases recognition. Build a unified package with the finetune/ pipeline.",
     "status.single": "single-model",
@@ -71,8 +62,8 @@ const EXTRA = {
     "confirm.clear": "Clear all history? This cannot be undone.",
     "banner.hotkey": "Global hotkey unavailable",
     "about.version": "Version",
-    "about.engine": "ASR: Qwen3-ASR-0.6B (ONNX CPU) · LLM: Qwen3.5-2B (ONNX)",
-    "about.license": "GPL-3.0-or-later · Tauri 3 · Rust + ort",
+    "about.engine": "ASR: Qwen3-ASR single model (GGUF 1.7B / ONNX 0.6B) — recognition + prompt-driven polish in one pass",
+    "about.license": "GPL-3.0-or-later · Tauri 3 · Rust + llama.cpp/ort",
   },
   zh: {
     "result.asr": "识别原文",
@@ -84,25 +75,16 @@ const EXTRA = {
     "btn.copy": "复制",
     "btn.record_key": "录制",
     "btn.refresh": "刷新",
-    "btn.apply": "应用",
-    "btn.save_as": "另存为",
     "btn.reload": "重新加载",
     "btn.open_config": "打开配置目录",
     "btn.open_log": "打开日志",
     "settings.hotkey_key": "全局热键（Ctrl+V 上屏）",
     "settings.hotkey_terminal_key": "终端热键（Ctrl+Shift+V 上屏）",
     "settings.hotkey_tip": "按住说话：按下开始，松开结束。两个热键互相独立，可分别开关。",
-    "settings.llm": "LLM 后处理",
-    "settings.llm_enable": "启用 LLM",
-    "settings.llm_preset": "提示词预设",
-    "settings.llm_saved": "我的提示词",
-    "settings.llm_custom": "自定义提示词",
-    "settings.prompt_name": "提示词名称",
-    "settings.llm_hint": "LLM 会把口语转成书面文本（补标点、去口癖）。关闭时直接输出 ASR 原文。",
     "settings.single": "单模型直出",
-    "settings.single_enable": "启用（微调统一模型）",
     "settings.single_preset": "优化提示词",
-    "settings.single_hint": "微调统一模型按提示词一步直出优化文本（识别+整理），不再经过 LLM。需要 unified 模型包（finetune/ 产线）；基座包上提示词仅作识别偏置。",
+    "settings.single_custom": "自定义提示词",
+    "settings.single_hint": "微调统一模型按提示词一步直出优化文本（识别+整理）。需要 unified 模型包（finetune/ 产线）；基座包上提示词仅作识别偏置，选「逐字转写」可完全消除偏置。",
     "settings.single_state_unified": "已检测到统一包——提示词会被当作任务指令执行。",
     "settings.single_state_base": "当前为基座包（无 unified.json）——提示词仅作识别偏置。可用 finetune/ 产线制作统一包。",
     "status.single": "直出",
@@ -127,8 +109,8 @@ const EXTRA = {
     "confirm.clear": "确定清空所有历史记录？此操作不可撤销。",
     "banner.hotkey": "全局热键不可用",
     "about.version": "版本",
-    "about.engine": "ASR：Qwen3-ASR-0.6B（ONNX CPU） · LLM：Qwen3.5-2B（ONNX）",
-    "about.license": "GPL-3.0-or-later · Tauri 3 · Rust + ort",
+    "about.engine": "ASR：Qwen3-ASR 单模型（GGUF 1.7B / ONNX 0.6B）——识别 + 提示词优化一步直出",
+    "about.license": "GPL-3.0-or-later · Tauri 3 · Rust + llama.cpp/ort",
   },
 };
 
@@ -163,9 +145,7 @@ const state = {
   cfg: {},
   status: {},
   history: [],
-  presets: [],
   presetsAsr: [],
-  custom: {},
   micList: [],
   locales: [],
   recording: false,
@@ -278,22 +258,11 @@ function renderStatus(s) {
       : `${t("status.loading")} · ASR`;
   setChip($("#chip-asr"), asr.asr_ready ? "ok" : asr.error ? "err" : "pending", asrLabel);
 
-  const llmOn = !!(state.cfg && state.cfg.llm_enabled);
-  const singleOn = !!(state.cfg && state.cfg.single_model_enabled);
-  const llmLabel = !llmOn || singleOn
-    ? `LLM · ${t("status.off")}`
-    : asr.llm_ready
-      ? `LLM · ${t("status.ready")}`
-      : `${t("status.loading")} · LLM`;
-  setChip($("#chip-llm"), !llmOn || singleOn ? "off" : asr.llm_ready ? "ok" : "pending", llmLabel);
-
+  // 单模型直出是唯一路径：chip 常显，颜色区分统一包（提示词=任务指令）与基座包（提示词=偏置）
   const chipSingle = $("#chip-single");
   if (chipSingle) {
-    chipSingle.hidden = !singleOn;
-    if (singleOn) {
-      const label = `${t("status.single")} · ${asr.asr_unified ? t("status.ready") : t("status.single_base")}`;
-      setChip(chipSingle, asr.asr_unified ? "ok" : "pending", label);
-    }
+    const label = `${t("status.single")} · ${asr.asr_unified ? t("status.ready") : t("status.single_base")}`;
+    setChip(chipSingle, asr.asr_unified ? "ok" : "pending", label);
   }
   renderSingleModelState();
 
@@ -306,7 +275,6 @@ function renderStatus(s) {
   setChip($("#chip-denoise"), dn ? (asr.denoise_ready ? "ok" : "pending") : "off", dnLabel);
 
   $("#dir-asr").textContent = asr.asr_dir || "—";
-  $("#dir-llm").textContent = asr.llm_dir || "—";
 
   const banner = $("#banner");
   if (asr.error) {
@@ -316,12 +284,10 @@ function renderStatus(s) {
     banner.hidden = true;
   }
 
-  const loading = (asr.loading && !asr.asr_ready) || asr.llm_loading;
+  const loading = asr.loading && !asr.asr_ready;
   $("#loading").hidden = !loading;
   if (loading) {
-    $("#loading-text").textContent = asr.llm_loading && asr.asr_ready
-      ? "LLM"
-      : t("loading.model");
+    $("#loading-text").textContent = t("loading.model");
   }
 
   const canRecord = !!asr.asr_ready;
@@ -329,7 +295,6 @@ function renderStatus(s) {
 
   const bits = [];
   if (asr.asr_ready) bits.push(backend ? `ASR·${backend}` : "ASR");
-  if (asr.llm_ready) bits.push("LLM");
   if (asr.denoise_ready) bits.push(t("settings.denoise"));
   $("#engine-line").textContent = bits.length
     ? bits.join(" · ")
@@ -575,22 +540,6 @@ function fillMics() {
   sel.value = saved;
 }
 
-function fillPresets() {
-  const sel = $("#sel-preset");
-  sel.innerHTML = "";
-  for (const p of state.presets) {
-    const o = document.createElement("option");
-    o.value = p.key;
-    o.textContent = presetName(p);
-    sel.append(o);
-  }
-  const custom = document.createElement("option");
-  custom.value = "custom";
-  custom.textContent = t("settings.llm_custom");
-  sel.append(custom);
-  sel.value = state.cfg.llm_preset || "standard";
-}
-
 function fillSinglePresets() {
   const sel = $("#sel-single-preset");
   if (!sel) return;
@@ -603,7 +552,7 @@ function fillSinglePresets() {
   }
   const custom = document.createElement("option");
   custom.value = "custom";
-  custom.textContent = t("settings.llm_custom");
+  custom.textContent = t("settings.single_custom");
   sel.append(custom);
   sel.value = state.cfg.single_model_preset || "polish_zh";
 }
@@ -629,42 +578,21 @@ async function updateSinglePromptArea() {
   }
 }
 
-function fillCustomPrompts() {
-  const sel = $("#sel-custom");
-  sel.innerHTML = "";
-  const none = document.createElement("option");
-  none.value = "";
-  none.textContent = "—";
-  sel.append(none);
-  for (const name of Object.keys(state.custom)) {
-    const o = document.createElement("option");
-    o.value = name;
-    o.textContent = name;
-    sel.append(o);
-  }
-}
-
 function syncSettings() {
   const c = state.cfg;
   $("#chk-denoise").checked = !!c.denoise;
   $("#chk-auto-type").checked = !!c.auto_type;
   $("#chk-history").checked = !!c.save_history;
   $("#chk-remove-punc").checked = !!c.remove_punc;
-  $("#chk-llm").checked = !!c.llm_enabled;
-  const chkSingle = $("#chk-single");
-  if (chkSingle) chkSingle.checked = !!c.single_model_enabled;
   $("#row-remove-punc").style.display = isZh() ? "" : "none";
   $("#chk-hotkey").checked = c.hotkey_enabled !== false;
   $("#chk-hotkey-terminal").checked = c.hotkey_terminal_enabled !== false;
   $("#hotkey-value-terminal").textContent = c.hotkey_terminal || "—";
   fillMics();
   fillAsrLangs();
-  fillPresets();
   fillSinglePresets();
-  fillCustomPrompts();
   fillLocales();
   renderHotkeyBadge();
-  updatePromptArea();
   updateSinglePromptArea();
   renderSingleModelState();
 }
@@ -676,23 +604,6 @@ function renderSingleModelState() {
   el.textContent = unified
     ? "✔ " + t("settings.single_state_unified")
     : "⚠ " + t("settings.single_state_base");
-}
-
-async function updatePromptArea() {
-  const preset = state.cfg.llm_preset || "standard";
-  const ta = $("#llm-prompt");
-  if (preset === "custom") {
-    ta.value = state.cfg.llm_system_prompt || "";
-    ta.readOnly = false;
-    ta.classList.remove("disabled");
-  } else {
-    try {
-      ta.value = await invoke("get_preset_prompt", { key: preset });
-    } catch {
-      ta.value = "";
-    }
-    ta.readOnly = true;
-  }
 }
 
 function bindSettings() {
@@ -730,17 +641,6 @@ function bindSettings() {
     renderHistory();
   });
   $("#chk-remove-punc").addEventListener("change", (e) => patchConfig({ remove_punc: e.target.checked }));
-  $("#chk-llm").addEventListener("change", async (e) => {
-    await patchConfig({ llm_enabled: e.target.checked });
-    renderStatus(state.status);
-  });
-  const chkSingle = $("#chk-single");
-  if (chkSingle) {
-    chkSingle.addEventListener("change", async (e) => {
-      await patchConfig({ single_model_enabled: e.target.checked });
-      renderStatus(state.status);
-    });
-  }
   const selSingle = $("#sel-single-preset");
   if (selSingle) {
     selSingle.addEventListener("change", async (e) => {
@@ -779,56 +679,6 @@ function bindSettings() {
   $("#chk-hotkey-terminal").addEventListener("change", async (e) => {
     await patchConfig({ hotkey_terminal_enabled: e.target.checked });
     renderHotkeyBadge();
-  });
-
-  $("#sel-preset").addEventListener("change", async (e) => {
-    const key = e.target.value;
-    await patchConfig({ llm_preset: key });
-    await updatePromptArea();
-  });
-
-  $("#llm-prompt").addEventListener("change", async () => {
-    if ((state.cfg.llm_preset || "") !== "custom") return;
-    const text = $("#llm-prompt").value;
-    await patchConfig({ llm_system_prompt: text });
-    toast(t("toast.saved"), "ok", 1200);
-  });
-
-  $("#sel-custom").addEventListener("change", async (e) => {
-    const name = e.target.value;
-    if (!name) return;
-    const body = state.custom[name] || "";
-    $("#llm-prompt").value = body;
-    await patchConfig({ llm_preset: "custom", llm_system_prompt: body });
-    $("#sel-preset").value = "custom";
-    toast(t("toast.saved"), "ok", 1200);
-  });
-
-  $("#btn-apply-custom").addEventListener("click", async () => {
-    const name = $("#sel-custom").value;
-    if (!name) return;
-    const body = state.custom[name] || "";
-    $("#llm-prompt").value = body;
-    await patchConfig({ llm_preset: "custom", llm_system_prompt: body });
-    $("#sel-preset").value = "custom";
-    toast(t("toast.saved"), "ok", 1200);
-  });
-
-  $("#btn-save-custom").addEventListener("click", async () => {
-    const name = $("#custom-name").value.trim();
-    if (!name) {
-      toast(t("toast.need_name"), "err");
-      return;
-    }
-    state.custom[name] = $("#llm-prompt").value;
-    try {
-      await invoke("save_custom_prompts", { prompts: state.custom });
-      fillCustomPrompts();
-      $("#sel-custom").value = name;
-      toast(t("toast.saved"), "ok", 1400);
-    } catch (e) {
-      toast(String(e), "err");
-    }
   });
 
   $("#sel-ui-lang").addEventListener("change", async (e) => {
@@ -993,7 +843,7 @@ async function bindEvents() {
   await listen("processing", () => {
     state.current = { asr: "", final: "", language: "" };
     renderResult();
-    $("#meta-llm").textContent = "";
+    $("#meta-final").textContent = "";
     renderMeta(t("meta.processing"));
     $("#btn-copy").disabled = true;
   });
@@ -1002,7 +852,7 @@ async function bindEvents() {
     state.current.asr = p.text || "";
     state.current.language = p.language || "";
     state.current.final = p.text || "";
-    $("#meta-llm").textContent = "";
+    $("#meta-final").textContent = "";
     renderResult();
     const parts = [];
     if (p.language) parts.push(langName(p.language));
@@ -1013,23 +863,17 @@ async function bindEvents() {
   await listen("final", (e) => {
     const p = e.payload;
     state.current.asr = p.asr_text || state.current.asr;
-    state.current.final = p.text || p.llm_text || p.asr_text || "";
+    state.current.final = p.text || p.asr_text || "";
     renderResult();
     const parts = [];
-    if (p.llm_text) parts.push(t("result.final"));
-    if (p.llm_s) parts.push(`LLM ${Number(p.llm_s).toFixed(2)}s`);
-    if (p.single_model) parts.push(t("badge.single"));
+    if (p.unified) parts.push(t("badge.single"));
     renderMeta(parts.join(" · "));
-    $("#meta-llm").textContent = p.llm_text
-      ? `LLM ${Number(p.llm_s || 0).toFixed(1)}s`
-      : p.single_model
-        ? t("badge.single")
-        : "";
+    $("#meta-final").textContent = p.unified ? t("badge.single") : "";
 
     if (state.cfg.save_history) {
       state.history.unshift({
         asr_text: p.asr_text,
-        llm_text: p.llm_text || null,
+        llm_text: null,
         time: p.time || "",
       });
       if (state.history.length > 500) state.history.length = 500;
@@ -1095,19 +939,9 @@ async function main() {
   }
 
   try {
-    state.presets = await invoke("list_presets");
-  } catch {
-    state.presets = [];
-  }
-  try {
     state.presetsAsr = await invoke("list_asr_presets");
   } catch {
     state.presetsAsr = [];
-  }
-  try {
-    state.custom = await invoke("get_custom_prompts");
-  } catch {
-    state.custom = {};
   }
   try {
     state.micList = await invoke("list_mics");

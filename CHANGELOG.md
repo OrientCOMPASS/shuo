@@ -2,6 +2,15 @@
 
 ## 未发布（feat/gguf-1.7b：推理框架迁移 + 1.7B）
 
+### 移除 — 双模型工作流整体下线（应用收敛为单模型直出，qsa E3 同款手术）
+- **删除 `src/llm.rs`**（Qwen3.5-2B ONNX 后处理管线，583 行）及全部关联：`mod llm`、LLM 加载器（`spawn_llm_loader`）、worker 的 LLM 段、命令 `list_presets`/`get_prompt`/`get_preset_prompt`/`get_custom_prompts`/`save_custom_prompts`、`half` 直接依赖与 ort 的 `half` feature（f16 张量唯一用户是 LLM KV/卷积状态）
+- **配置**：`llm_enabled`/`llm_preset`/`llm_system_prompt`/`llm_model_dir`/`single_model_enabled` 字段移除（旧配置里的废弃字段经 `extra` flatten 原样保留不丢失）；单模型直出成为唯一路径——enable 开关失去意义，「逐字转写」预设即旧的不优化行为，默认预设 `polish_zh` 恒生效
+- **模型解析**：`ModelPaths` 去 LLM 槽位（不再查找/下载 Qwen3.5-2B-ONNX-OPT，省 1.4GB）；`describe()` 只报两个 ASR 槽位
+- **Status/事件瘦身**：`llm_ready`/`llm_loading`/`llm_dir` 移除；`final` 事件带 `unified` 标志（替代 `llm_text`/`llm_s`/`single_model`）；历史记录 `llm_text` 字段保留（兼容旧 history.json 展示），新条目恒 null
+- **UI**：LLM 设置组 / chip-llm / dir-llm / 我的提示词库整体移除；「单模型直出」组去掉开关行（预设+自定义提示词恒生效）；「直出」chip 常显（绿=统一包/黄=基座包）；结果卡徽标 `meta-final` 显示「单模型直出」；about.engine 更新为单模型口径；`ci.yml` py-ui 增加**LLM 控件/命令/模块必须缺席**的防回潮断言
+- **文档**：README/AGENTS/finetune README 全面单模型化（快速开始只列 ASR 模型、许可段模型条目更新、LLM threading 段改写为 Inference threading）
+- 保留：ort 仍承担**降噪模型**（resources/denoise.onnx）与 ONNX ASR 后备后端；legacy Python 版（含其 LLM）原样归档不动；main 分支维持双模型可切换形态
+
 ### 新增 — 风格任务提示词 + CI 产物下载 + pre-release 分发
 - **风格轴任务预设**：`brief_zh`（简略风格：压缩为要点，尽量简短。）与 `detail_zh`（详细风格：保留全部细节，输出完整书面文本。）——UI 下拉自动出现（预设表驱动）；`prompts.py` ↔ `asr.rs` 对表扩展；评测新增**去空白长度比判据**（brief ≤0.80、detail ≥0.95，`eval_unified.py::TASK_LEN`，FLEURS 字符流转写下唯一公平口径）；stub 优化器补风格分支（CI 纯逻辑单测覆盖确定性与长度形态）
 - **对照表扩容**：`table_zh.tsv` 240 → **480 行**（120 源句 × 4 任务：polish_zh / translate_en / brief_zh 人工压缩要点（均值长度比 0.652）/ detail_zh），real-mini 可单跑风格轴（--tasks brief_zh,detail_zh）或四任务合训

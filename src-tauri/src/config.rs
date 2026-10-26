@@ -29,10 +29,6 @@ pub fn log_path() -> PathBuf {
   user_dir().join("shuo.log")
 }
 
-pub fn default_prompt() -> String {
-  "请优化以下文本：1. 修正标点符号；2. 去除口语中的口癖和犹豫词（如嗯、啊、呃、那个、就是说、然后、对吧、你知道吗、反正、就是、大概、好像等）；3. 保持原意和原始表达方式。只输出修正后的文本。".to_string()
-}
-
 fn d_hotkey() -> String {
   "f2".into()
 }
@@ -41,9 +37,6 @@ fn d_language() -> String {
 }
 fn d_asr_lang() -> String {
   "auto".into()
-}
-fn d_preset() -> String {
-  crate::llm::PRESET_STANDARD.into()
 }
 fn d_hotkey_terminal() -> String {
   "f3".into()
@@ -72,24 +65,18 @@ pub struct Config {
   pub save_history: bool,
   /// 麦克风设备名（None = 系统默认）
   pub mic_device: Option<String>,
-  pub llm_enabled: bool,
-  /// LLM 提示词预设 key；`custom` 时使用 `llm_system_prompt`
-  pub llm_preset: String,
-  pub llm_system_prompt: String,
-  /// 单模型直出：微调后的 ASR 模型按 system 段提示词直接输出优化文本，跳过 LLM 后处理
-  #[serde(default)]
-  pub single_model_enabled: bool,
-  /// 单模型直出提示词预设 key（见 `asr::unified_preset_list`）；`custom` 时用 `single_model_prompt`
+  /// 单模型直出的提示词预设 key（见 `asr::unified_preset_list`；`verbatim`=逐字转写，
+  /// `custom` 时使用 `single_model_prompt`）。本分支起应用只有单模型一条路径，
+  /// 不再需要开关——`verbatim` 预设即旧的"不优化"行为。
   #[serde(default = "d_single_preset")]
   pub single_model_preset: String,
-  /// 自定义单模型提示词（进 chat 模板 system 段；效果取决于微调数据是否覆盖）
+  /// 自定义提示词（进 chat 模板 system 段；效果取决于微调数据是否覆盖）
   #[serde(default = "crate::asr::default_unified_prompt")]
   pub single_model_prompt: String,
   /// 启动后直接收到托盘（默认否）
   pub start_hidden: bool,
   /// 模型目录覆盖（空 = 自动查找）
   pub asr_model_dir: Option<String>,
-  pub llm_model_dir: Option<String>,
   /// ASR 推理后端："auto"（有 GGUF 模型优先 GGUF）/ "onnx" / "gguf"
   #[serde(default = "d_asr_backend")]
   pub asr_backend: String,
@@ -102,7 +89,8 @@ pub struct Config {
   /// 终端热键：用这个键录音，识别后用 Ctrl+Shift+V 上屏（主热键用 Ctrl+V）
   #[serde(default = "d_hotkey_terminal")]
   pub hotkey_terminal: String,
-  /// 保留 Python 版写入的其它字段，避免来回切换时丢配置
+  /// 保留 Python 版 / 旧版本写入的其它字段（含已废弃的 llm_* 与
+  /// single_model_enabled），避免来回切换时丢配置
   #[serde(flatten)]
   pub extra: BTreeMap<String, serde_json::Value>,
 }
@@ -118,10 +106,6 @@ impl Default for Config {
       remove_punc: false,
       save_history: true,
       mic_device: None,
-      llm_enabled: false,
-      llm_preset: d_preset(),
-      llm_system_prompt: default_prompt(),
-      single_model_enabled: false,
       single_model_preset: d_single_preset(),
       single_model_prompt: crate::asr::default_unified_prompt(),
       hotkey_enabled: true,
@@ -129,7 +113,6 @@ impl Default for Config {
       hotkey_terminal: d_hotkey_terminal(),
       start_hidden: false,
       asr_model_dir: None,
-      llm_model_dir: None,
       asr_backend: d_asr_backend(),
       extra: BTreeMap::new(),
     }
@@ -170,6 +153,8 @@ pub fn save_config(cfg: &Config) -> Result<(), String> {
 pub struct HistoryItem {
   #[serde(default)]
   pub asr_text: String,
+  /// 旧双模型时代的 LLM 优化文本；单模型化后新条目恒为 None（字段保留以兼容
+  /// 既有 history.json 与 UI 展示逻辑）
   #[serde(default)]
   pub llm_text: Option<String>,
   #[serde(default)]
@@ -189,12 +174,13 @@ pub fn save_history(items: &[HistoryItem]) -> Result<(), String> {
 }
 
 /// 追加一条历史（最多 500 条，最新的在末尾；前端倒序展示）。
-pub fn add_history(asr_text: &str, llm_text: Option<&str>) {
+/// 单模型化后直出文本即最终文本（`llm_text` 恒 None，字段仅存兼容旧文件）。
+pub fn add_history(asr_text: &str) {
   let now = chrono_time();
   let mut items = load_history();
   items.push(HistoryItem {
     asr_text: asr_text.to_string(),
-    llm_text: llm_text.map(|s| s.to_string()),
+    llm_text: None,
     time: now,
   });
   if items.len() > 500 {

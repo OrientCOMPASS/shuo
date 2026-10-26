@@ -805,6 +805,8 @@ jobs:
           marker = {
               "kind": "shuo-unified-asr-gguf",
               "base_hf_model": "${{ inputs.model }}",
+              "adapter_run": "${{ inputs.adapter_run }}",
+              "adapter_artifact": "${{ inputs.adapter_artifact }}",
               "quant": {"lm": "Q4_K_M", "mmproj": "q8_0"},
               "prompts": all_prompts(),
               "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -925,7 +927,7 @@ jobs:
               "",
               "## 性质与限制",
               "",
-              f"* 构建时间（UTC）：{marker.get('created_utc')}；",
+              f"* 构建时间（UTC）：{marker.get('created_utc')}；来源适配器：finetune run {marker.get('adapter_run') or '（未记录）'}",
               "* **pre-release**：训练数据为 120 句 FLEURS 朗读语料对照表（real-mini 规模），",
               "  任务开关/静音行为已在 CI 全链验证（见仓库 finetune/README.md 实测记录），",
               "  词级精度未达产品级——放量用 gpu-train（≥2000 句）后重发本 release 即可；",

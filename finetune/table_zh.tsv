@@ -1,248 +1,490 @@
 # shuo real-mini 对照表（免 API key 真实微调数据）
 # 源：FLEURS cmn_hans_cn 流式前 120 条（prepare_data --limit 100 --eval-limit 20
 #     --max-audio-secs 15，dump-table 模式导出，顺序确定可复现）
-# 格式：task<TAB>源转写<TAB>目标文本
-#   polish_zh    = 书面化（并字 + 标点，保持原意原词——FLEURS 原始转写多为
-#                  字符间带空格、无标点的口语流，正好构成真实的优化对比度）
-#   translate_en = 英文直译（强信号任务，验证任务开关）
+# 格式：task<TAB>源转写<TAB>目标文本；每源句 4 个任务：
+#   polish_zh    = 书面化（并字 + 标点，保持原意原词）
+#   translate_en = 英文直译（强信号任务）
+#   brief_zh     = 简略风格（人工压缩要点，去空白字数比 ≤0.75）
+#   detail_zh    = 详细风格（保留全部细节的完整书面文本；朗读语料上与
+#                  polish 目标同文——风格轴对比度由 brief 承担，评测按长度比判）
 # 重复源句（FLEURS 内含重复样本）按 (task, 源) 键自然去重。
 polish_zh	尽 管 受 到 这 些 指 责 马 英 九 在 一 次 演 讲 中 主 张 与 中 国 大 陆 建 立 更 加 紧 密 的 联 系 并 轻 松 获 胜	尽管受到这些指责，马英九在一次演讲中主张与中国大陆建立更加紧密的联系，并轻松获胜。
 translate_en	尽 管 受 到 这 些 指 责 马 英 九 在 一 次 演 讲 中 主 张 与 中 国 大 陆 建 立 更 加 紧 密 的 联 系 并 轻 松 获 胜	Despite these accusations, Ma Ying-jeou advocated closer ties with mainland China in a speech and won easily.
+brief_zh	尽 管 受 到 这 些 指 责 马 英 九 在 一 次 演 讲 中 主 张 与 中 国 大 陆 建 立 更 加 紧 密 的 联 系 并 轻 松 获 胜	马英九主张与中国大陆更紧密联系，轻松获胜。
+detail_zh	尽 管 受 到 这 些 指 责 马 英 九 在 一 次 演 讲 中 主 张 与 中 国 大 陆 建 立 更 加 紧 密 的 联 系 并 轻 松 获 胜	尽管受到这些指责，马英九在一次演讲中主张与中国大陆建立更加紧密的联系，并轻松获胜。
 polish_zh	在 这 里 可 以 买 到 很 多 法 国 葡 萄 酒 但 新 西 兰 和 澳 大 利 亚 的 葡 萄 酒 可 能 更 经 得 起 长 途 运 输	在这里可以买到很多法国葡萄酒，但新西兰和澳大利亚的葡萄酒可能更经得起长途运输。
 translate_en	在 这 里 可 以 买 到 很 多 法 国 葡 萄 酒 但 新 西 兰 和 澳 大 利 亚 的 葡 萄 酒 可 能 更 经 得 起 长 途 运 输	Many French wines can be bought here, but wines from New Zealand and Australia may better withstand long-distance transport.
+brief_zh	在 这 里 可 以 买 到 很 多 法 国 葡 萄 酒 但 新 西 兰 和 澳 大 利 亚 的 葡 萄 酒 可 能 更 经 得 起 长 途 运 输	这里法国葡萄酒多，但新西兰、澳大利亚酒更耐长途运输。
+detail_zh	在 这 里 可 以 买 到 很 多 法 国 葡 萄 酒 但 新 西 兰 和 澳 大 利 亚 的 葡 萄 酒 可 能 更 经 得 起 长 途 运 输	在这里可以买到很多法国葡萄酒，但新西兰和澳大利亚的葡萄酒可能更经得起长途运输。
 polish_zh	最 好 找 一 个 常 常 预 订 与 你 的 旅 程 类 似 的 代 理	最好找一个常常预订与你的旅程类似的代理。
 translate_en	最 好 找 一 个 常 常 预 订 与 你 的 旅 程 类 似 的 代 理	It is best to find an agent who often books trips similar to yours.
+brief_zh	最 好 找 一 个 常 常 预 订 与 你 的 旅 程 类 似 的 代 理	最好找常订类似行程的代理。
+detail_zh	最 好 找 一 个 常 常 预 订 与 你 的 旅 程 类 似 的 代 理	最好找一个常常预订与你的旅程类似的代理。
 polish_zh	三 角 龙 的 牙 齿 不 仅 能 咬 碎 树 叶 还 能 咬 碎 非 常 坚 硬 的 树 枝 和 树 根	三角龙的牙齿不仅能咬碎树叶，还能咬碎非常坚硬的树枝和树根。
 translate_en	三 角 龙 的 牙 齿 不 仅 能 咬 碎 树 叶 还 能 咬 碎 非 常 坚 硬 的 树 枝 和 树 根	Triceratops teeth could chew not only leaves but also very hard branches and tree roots.
+brief_zh	三 角 龙 的 牙 齿 不 仅 能 咬 碎 树 叶 还 能 咬 碎 非 常 坚 硬 的 树 枝 和 树 根	三角龙的牙齿能咬碎树叶和坚硬树枝树根。
+detail_zh	三 角 龙 的 牙 齿 不 仅 能 咬 碎 树 叶 还 能 咬 碎 非 常 坚 硬 的 树 枝 和 树 根	三角龙的牙齿不仅能咬碎树叶，还能咬碎非常坚硬的树枝和树根。
 polish_zh	美 国 表 示 他 们 收 到 了 来 自 一 名 不 愿 公 开 身 份 的 人 士 提 供 的 信 息 其 中 专 门 提 到 了 通 过 自 杀 炸 弹 袭 击 者 炸 毁 埃 塞 俄 比 亚 和 肯 尼 亚 的 ' 著 名 地 标 '	美国表示，他们收到了来自一名不愿公开身份的人士提供的信息，其中专门提到了通过自杀炸弹袭击者炸毁埃塞俄比亚和肯尼亚的「著名地标」。
 translate_en	美 国 表 示 他 们 收 到 了 来 自 一 名 不 愿 公 开 身 份 的 人 士 提 供 的 信 息 其 中 专 门 提 到 了 通 过 自 杀 炸 弹 袭 击 者 炸 毁 埃 塞 俄 比 亚 和 肯 尼 亚 的 ' 著 名 地 标 '	The United States said it received information from a person unwilling to be publicly identified, specifically mentioning blowing up "famous landmarks" in Ethiopia and Kenya with suicide bombers.
+brief_zh	美 国 表 示 他 们 收 到 了 来 自 一 名 不 愿 公 开 身 份 的 人 士 提 供 的 信 息 其 中 专 门 提 到 了 通 过 自 杀 炸 弹 袭 击 者 炸 毁 埃 塞 俄 比 亚 和 肯 尼 亚 的 ' 著 名 地 标 '	美国获匿名线报：有人拟以自杀炸弹袭击埃塞俄比亚和肯尼亚的著名地标。
+detail_zh	美 国 表 示 他 们 收 到 了 来 自 一 名 不 愿 公 开 身 份 的 人 士 提 供 的 信 息 其 中 专 门 提 到 了 通 过 自 杀 炸 弹 袭 击 者 炸 毁 埃 塞 俄 比 亚 和 肯 尼 亚 的 ' 著 名 地 标 '	美国表示，他们收到了来自一名不愿公开身份的人士提供的信息，其中专门提到了通过自杀炸弹袭击者炸毁埃塞俄比亚和肯尼亚的「著名地标」。
 polish_zh	联盟花园 jardín de la unión这里曾是一座 17 世纪修道院的中庭其中的圣地亚哥圣殿是唯一现存的建筑	联盟花园（jardín de la unión）这里曾是一座17世纪修道院的中庭，其中的圣地亚哥圣殿是唯一现存的建筑。
 translate_en	联盟花园 jardín de la unión这里曾是一座 17 世纪修道院的中庭其中的圣地亚哥圣殿是唯一现存的建筑	The Alliance Garden (jardín de la unión) was once the atrium of a 17th-century monastery, in which the Santiago chapel is the only surviving building.
+brief_zh	联盟花园 jardín de la unión这里曾是一座 17 世纪修道院的中庭其中的圣地亚哥圣殿是唯一现存的建筑	联盟花园曾是17世纪修道院中庭，仅圣地亚哥圣殿现存。
+detail_zh	联盟花园 jardín de la unión这里曾是一座 17 世纪修道院的中庭其中的圣地亚哥圣殿是唯一现存的建筑	联盟花园（jardín de la unión）这里曾是一座17世纪修道院的中庭，其中的圣地亚哥圣殿是唯一现存的建筑。
 polish_zh	人 们 用 椅 子 敲 打 玻 璃 但 窗 户 却 坚 不 可 摧	人们用椅子敲打玻璃，但窗户却坚不可摧。
 translate_en	人 们 用 椅 子 敲 打 玻 璃 但 窗 户 却 坚 不 可 摧	People struck the glass with chairs, but the windows were unbreakable.
+brief_zh	人 们 用 椅 子 敲 打 玻 璃 但 窗 户 却 坚 不 可 摧	人们用椅子砸玻璃未破。
+detail_zh	人 们 用 椅 子 敲 打 玻 璃 但 窗 户 却 坚 不 可 摧	人们用椅子敲打玻璃，但窗户却坚不可摧。
 polish_zh	全 球 有 近 200 个 跑 步 旅 游 组 织 大 多 独 立 运 营	全球有近200个跑步旅游组织，大多独立运营。
 translate_en	全 球 有 近 200 个 跑 步 旅 游 组 织 大 多 独 立 运 营	There are nearly 200 running-tour organizations worldwide, most of them operating independently.
+brief_zh	全 球 有 近 200 个 跑 步 旅 游 组 织 大 多 独 立 运 营	全球近200个跑步旅游组织。
+detail_zh	全 球 有 近 200 个 跑 步 旅 游 组 织 大 多 独 立 运 营	全球有近200个跑步旅游组织，大多独立运营。
 polish_zh	它 们 被 列 入 了 联 合 国 教 科 文 组 织 世 界 遗 产 名 录	它们被列入了联合国教科文组织世界遗产名录。
 translate_en	它 们 被 列 入 了 联 合 国 教 科 文 组 织 世 界 遗 产 名 录	They were inscribed on the UNESCO World Heritage List.
+brief_zh	它 们 被 列 入 了 联 合 国 教 科 文 组 织 世 界 遗 产 名 录	它们已列入世界遗产名录。
+detail_zh	它 们 被 列 入 了 联 合 国 教 科 文 组 织 世 界 遗 产 名 录	它们被列入了联合国教科文组织世界遗产名录。
 polish_zh	有 个 传 统 是 在 复 活 节 之 夜 在 户 外 某 处 醒 着 看 日 出	有个传统是在复活节之夜在户外某处醒着看日出。
 translate_en	有 个 传 统 是 在 复 活 节 之 夜 在 户 外 某 处 醒 着 看 日 出	There is a tradition of staying awake somewhere outdoors on Easter night to watch the sunrise.
+brief_zh	有 个 传 统 是 在 复 活 节 之 夜 在 户 外 某 处 醒 着 看 日 出	复活节之夜守夜看日出是传统。
+detail_zh	有 个 传 统 是 在 复 活 节 之 夜 在 户 外 某 处 醒 着 看 日 出	有个传统是在复活节之夜在户外某处醒着看日出。
 polish_zh	这 让 学 生 能 够 按 自 己 的 节 奏 学 习 并 控 制 传 授 教 学 信 息 的 节 奏	这让学生能够按自己的节奏学习，并控制传授教学信息的节奏。
 translate_en	这 让 学 生 能 够 按 自 己 的 节 奏 学 习 并 控 制 传 授 教 学 信 息 的 节 奏	This allows students to learn at their own pace and to control the pace at which instructional information is delivered.
+brief_zh	这 让 学 生 能 够 按 自 己 的 节 奏 学 习 并 控 制 传 授 教 学 信 息 的 节 奏	学生可按自己节奏学习并控制教学进度。
+detail_zh	这 让 学 生 能 够 按 自 己 的 节 奏 学 习 并 控 制 传 授 教 学 信 息 的 节 奏	这让学生能够按自己的节奏学习，并控制传授教学信息的节奏。
 polish_zh	例 如 在 婆 罗 洲 参 观 拍 摄 和 了 解 红 毛 猩 猩	例如在婆罗洲参观、拍摄和了解红毛猩猩。
 translate_en	例 如 在 婆 罗 洲 参 观 拍 摄 和 了 解 红 毛 猩 猩	For example, visiting, photographing, and learning about orangutans in Borneo.
+brief_zh	例 如 在 婆 罗 洲 参 观 拍 摄 和 了 解 红 毛 猩 猩	婆罗洲参观拍摄红毛猩猩。
+detail_zh	例 如 在 婆 罗 洲 参 观 拍 摄 和 了 解 红 毛 猩 猩	例如在婆罗洲参观、拍摄和了解红毛猩猩。
 polish_zh	这 样 做 是 为 了 保 证 图 像 能 覆 盖 住 整 个 屏 幕 这 叫 做 过 度 扫 描	这样做是为了保证图像能覆盖住整个屏幕，这叫做过度扫描。
 translate_en	这 样 做 是 为 了 保 证 图 像 能 覆 盖 住 整 个 屏 幕 这 叫 做 过 度 扫 描	This is done to ensure the image covers the entire screen; it is called overscan.
+brief_zh	这 样 做 是 为 了 保 证 图 像 能 覆 盖 住 整 个 屏 幕 这 叫 做 过 度 扫 描	为使图像覆盖全屏，这叫过度扫描。
+detail_zh	这 样 做 是 为 了 保 证 图 像 能 覆 盖 住 整 个 屏 幕 这 叫 做 过 度 扫 描	这样做是为了保证图像能覆盖住整个屏幕，这叫做过度扫描。
 polish_zh	背 景 幕 布 上 是 狮 身 人 面 像 它 也 是 长 篇 故 事 的 讲 述 者	背景幕布上是狮身人面像，它也是长篇故事的讲述者。
 translate_en	背 景 幕 布 上 是 狮 身 人 面 像 它 也 是 长 篇 故 事 的 讲 述 者	The backdrop features the Sphinx, which is also the narrator of the long story.
+brief_zh	背 景 幕 布 上 是 狮 身 人 面 像 它 也 是 长 篇 故 事 的 讲 述 者	背景是狮身人面像，也是故事讲述者。
+detail_zh	背 景 幕 布 上 是 狮 身 人 面 像 它 也 是 长 篇 故 事 的 讲 述 者	背景幕布上是狮身人面像，它也是长篇故事的讲述者。
 polish_zh	我 们 都 非 常 震 惊 这 位 母 亲 表 示	「我们都非常震惊，」这位母亲表示。
 translate_en	我 们 都 非 常 震 惊 这 位 母 亲 表 示	"We were all shocked," the mother said.
+brief_zh	我 们 都 非 常 震 惊 这 位 母 亲 表 示	这位母亲说大家都非常震惊。
+detail_zh	我 们 都 非 常 震 惊 这 位 母 亲 表 示	「我们都非常震惊，」这位母亲表示。
 polish_zh	鲨 鱼 确 实 存 在 但 它 们 很 少 攻 击 人 类 多 数 鲨 鱼 害 怕 人 类 会 游 走	鲨鱼确实存在，但它们很少攻击人类；多数鲨鱼害怕人类，会游走。
 translate_en	鲨 鱼 确 实 存 在 但 它 们 很 少 攻 击 人 类 多 数 鲨 鱼 害 怕 人 类 会 游 走	Sharks do exist, but they rarely attack humans; most sharks are afraid of people and swim away.
+brief_zh	鲨 鱼 确 实 存 在 但 它 们 很 少 攻 击 人 类 多 数 鲨 鱼 害 怕 人 类 会 游 走	鲨鱼很少攻击人类，多数怕人会游走。
+detail_zh	鲨 鱼 确 实 存 在 但 它 们 很 少 攻 击 人 类 多 数 鲨 鱼 害 怕 人 类 会 游 走	鲨鱼确实存在，但它们很少攻击人类；多数鲨鱼害怕人类，会游走。
 polish_zh	它 们 必 须 消 除 从 光 中 得 到 的 多 余 能 量 才 能 恢 复 到 之 前 的 能 量 等 级	它们必须消除从光中得到的多余能量，才能恢复到之前的能量等级。
 translate_en	它 们 必 须 消 除 从 光 中 得 到 的 多 余 能 量 才 能 恢 复 到 之 前 的 能 量 等 级	They must get rid of the excess energy gained from light before they can return to their previous energy level.
+brief_zh	它 们 必 须 消 除 从 光 中 得 到 的 多 余 能 量 才 能 恢 复 到 之 前 的 能 量 等 级	它们须先耗掉光带来的多余能量才能恢复原能级。
+detail_zh	它 们 必 须 消 除 从 光 中 得 到 的 多 余 能 量 才 能 恢 复 到 之 前 的 能 量 等 级	它们必须消除从光中得到的多余能量，才能恢复到之前的能量等级。
 polish_zh	本 次 的 立 法 会 议 进 行 了 一 处 修 改 先 是 众 议 院 删 除 了 其 中 的 第 二 句 话 语 随 后 参 议 院 在 周 一 如 法 炮 制 使 其 获 准 通 过	本次的立法会议进行了一处修改：先是众议院删除了其中的第二句话语，随后参议院在周一如法炮制，使其获准通过。
 translate_en	本 次 的 立 法 会 议 进 行 了 一 处 修 改 先 是 众 议 院 删 除 了 其 中 的 第 二 句 话 语 随 后 参 议 院 在 周 一 如 法 炮 制 使 其 获 准 通 过	The legislative session made one modification: first the House deleted the second sentence, then the Senate did the same on Monday, allowing it to pass.
+brief_zh	本 次 的 立 法 会 议 进 行 了 一 处 修 改 先 是 众 议 院 删 除 了 其 中 的 第 二 句 话 语 随 后 参 议 院 在 周 一 如 法 炮 制 使 其 获 准 通 过	众议院删除第二句后，参议院周一照做，议案获通过。
+detail_zh	本 次 的 立 法 会 议 进 行 了 一 处 修 改 先 是 众 议 院 删 除 了 其 中 的 第 二 句 话 语 随 后 参 议 院 在 周 一 如 法 炮 制 使 其 获 准 通 过	本次的立法会议进行了一处修改：先是众议院删除了其中的第二句话语，随后参议院在周一如法炮制，使其获准通过。
 polish_zh	2009 年 她 被 授 予 全 国 年 度 校 长 称 号	2009年，她被授予全国年度校长称号。
 translate_en	2009 年 她 被 授 予 全 国 年 度 校 长 称 号	In 2009 she was named National Principal of the Year.
+brief_zh	2009 年 她 被 授 予 全 国 年 度 校 长 称 号	她2009年获评年度校长。
+detail_zh	2009 年 她 被 授 予 全 国 年 度 校 长 称 号	2009年，她被授予全国年度校长称号。
 polish_zh	委 内 瑞 拉 是 石 油 净 出 口 国 尽 管 只 有 百 分 之 一 的 人 在 石 油 行 业 工 作 但 石 油 行 业 仍 然 是 该 国 的 重 要 产 业	委内瑞拉是石油净出口国；尽管只有十分之一的人在石油行业工作，但石油行业仍然是该国的重要产业。
 translate_en	委 内 瑞 拉 是 石 油 净 出 口 国 尽 管 只 有 百 分 之 一 的 人 在 石 油 行 业 工 作 但 石 油 行 业 仍 然 是 该 国 的 重 要 产 业	Venezuela is a net oil exporter; although only one in ten people works in the oil industry, it remains a vital sector for the country.
+brief_zh	委 内 瑞 拉 是 石 油 净 出 口 国 尽 管 只 有 百 分 之 一 的 人 在 石 油 行 业 工 作 但 石 油 行 业 仍 然 是 该 国 的 重 要 产 业	委内瑞拉是石油净出口国，石油业仅雇一成人口却是支柱产业。
+detail_zh	委 内 瑞 拉 是 石 油 净 出 口 国 尽 管 只 有 百 分 之 一 的 人 在 石 油 行 业 工 作 但 石 油 行 业 仍 然 是 该 国 的 重 要 产 业	委内瑞拉是石油净出口国；尽管只有十分之一的人在石油行业工作，但石油行业仍然是该国的重要产业。
 polish_zh	耶 路 撒 冷 尤 其 是 老 城 的 许 多 场 所 的 宗 教 意 义 使 这 座 城 成 为 以 色 列 主 要 旅 游 目 的 地 之 一	耶路撒冷，尤其是老城的许多场所的宗教意义，使这座城成为以色列主要旅游目的地之一。
 translate_en	耶 路 撒 冷 尤 其 是 老 城 的 许 多 场 所 的 宗 教 意 义 使 这 座 城 成 为 以 色 列 主 要 旅 游 目 的 地 之 一	The religious significance of Jerusalem, especially of many sites in the Old City, makes it one of Israel's main tourist destinations.
+brief_zh	耶 路 撒 冷 尤 其 是 老 城 的 许 多 场 所 的 宗 教 意 义 使 这 座 城 成 为 以 色 列 主 要 旅 游 目 的 地 之 一	耶路撒冷老城宗教意义重大，是以色列主要旅游地。
+detail_zh	耶 路 撒 冷 尤 其 是 老 城 的 许 多 场 所 的 宗 教 意 义 使 这 座 城 成 为 以 色 列 主 要 旅 游 目 的 地 之 一	耶路撒冷，尤其是老城的许多场所的宗教意义，使这座城成为以色列主要旅游目的地之一。
 polish_zh	这 意 味 着 我 们 能 够 成 功 地 预 测 其 他 人 的 感 知 意 图 信 仰 知 识 或 欲 望	这意味着我们能够成功地预测其他人的感知、意图、信仰、知识或欲望。
 translate_en	这 意 味 着 我 们 能 够 成 功 地 预 测 其 他 人 的 感 知 意 图 信 仰 知 识 或 欲 望	This means we are able to successfully predict other people's perceptions, intentions, beliefs, knowledge, or desires.
+brief_zh	这 意 味 着 我 们 能 够 成 功 地 预 测 其 他 人 的 感 知 意 图 信 仰 知 识 或 欲 望	即我们能预测他人的心理状态。
+detail_zh	这 意 味 着 我 们 能 够 成 功 地 预 测 其 他 人 的 感 知 意 图 信 仰 知 识 或 欲 望	这意味着我们能够成功地预测其他人的感知、意图、信仰、知识或欲望。
 polish_zh	抗 议 活 动 的 组 织 者 称 大 约 有 10 万 人 出 现 在 柏 林 科 隆 汉 堡 和 汉 诺 威 等 德 国 城 市	抗议活动的组织者称，大约有10万人出现在柏林、科隆、汉堡和汉诺威等德国城市。
 translate_en	抗 议 活 动 的 组 织 者 称 大 约 有 10 万 人 出 现 在 柏 林 科 隆 汉 堡 和 汉 诺 威 等 德 国 城 市	Organizers of the protests said about 100,000 people turned out in German cities such as Berlin, Cologne, Hamburg, and Hanover.
+brief_zh	抗 议 活 动 的 组 织 者 称 大 约 有 10 万 人 出 现 在 柏 林 科 隆 汉 堡 和 汉 诺 威 等 德 国 城 市	组织者称约10万人在柏林等德国城市抗议。
+detail_zh	抗 议 活 动 的 组 织 者 称 大 约 有 10 万 人 出 现 在 柏 林 科 隆 汉 堡 和 汉 诺 威 等 德 国 城 市	抗议活动的组织者称，大约有10万人出现在柏林、科隆、汉堡和汉诺威等德国城市。
 polish_zh	人 类 的 手 比 脚 短 指 趾 骨 更 直	人类的手比脚短，指趾骨更直。
 translate_en	人 类 的 手 比 脚 短 指 趾 骨 更 直	Human hands are shorter than feet, and the finger and toe bones are straighter.
+brief_zh	人 类 的 手 比 脚 短 指 趾 骨 更 直	人类手短于脚，趾骨更直。
+detail_zh	人 类 的 手 比 脚 短 指 趾 骨 更 直	人类的手比脚短，指趾骨更直。
 polish_zh	这 些 代 理 人 负 责 根 据 巴 基 斯 坦 宪 法 第 247 条 提 供 政 府 和 司 法 服 务	这些代理人负责根据巴基斯坦宪法第247条提供政府和司法服务。
 translate_en	这 些 代 理 人 负 责 根 据 巴 基 斯 坦 宪 法 第 247 条 提 供 政 府 和 司 法 服 务	These agents are responsible for providing governmental and judicial services under Article 247 of the Constitution of Pakistan.
+brief_zh	这 些 代 理 人 负 责 根 据 巴 基 斯 坦 宪 法 第 247 条 提 供 政 府 和 司 法 服 务	代理人依巴宪法第247条提供政府与司法服务。
+detail_zh	这 些 代 理 人 负 责 根 据 巴 基 斯 坦 宪 法 第 247 条 提 供 政 府 和 司 法 服 务	这些代理人负责根据巴基斯坦宪法第247条提供政府和司法服务。
 polish_zh	只 有 动 物 有 脑 但 也 不 是 所 有 动 物 都 有 比 如 水 母 就 没 有 脑	只有动物有脑，但也不是所有动物都有，比如水母就没有脑。
 translate_en	只 有 动 物 有 脑 但 也 不 是 所 有 动 物 都 有 比 如 水 母 就 没 有 脑	Only animals have brains, but not all of them do; jellyfish, for instance, have no brain.
+brief_zh	只 有 动 物 有 脑 但 也 不 是 所 有 动 物 都 有 比 如 水 母 就 没 有 脑	只有动物有脑，但水母等除外。
+detail_zh	只 有 动 物 有 脑 但 也 不 是 所 有 动 物 都 有 比 如 水 母 就 没 有 脑	只有动物有脑，但也不是所有动物都有，比如水母就没有脑。
 polish_zh	10 年 来 巴 西 国 民 议 会 一 直 就 其 合 法 性 进 行 讨 论 目 前 这 种 民 间 婚 姻 只 在 南 里 奥 格 兰 德 rio grande do sul 是 合 法 的	10年来，巴西国民议会一直就其合法性进行讨论；目前这种民间婚姻只在南里奥格兰德（Rio Grande do Sul）是合法的。
 translate_en	10 年 来 巴 西 国 民 议 会 一 直 就 其 合 法 性 进 行 讨 论 目 前 这 种 民 间 婚 姻 只 在 南 里 奥 格 兰 德 rio grande do sul 是 合 法 的	For ten years the Brazilian National Congress has debated its legality; at present this kind of civil marriage is legal only in Rio Grande do Sul.
+brief_zh	10 年 来 巴 西 国 民 议 会 一 直 就 其 合 法 性 进 行 讨 论 目 前 这 种 民 间 婚 姻 只 在 南 里 奥 格 兰 德 rio grande do sul 是 合 法 的	巴西议会讨论其合法性十年，目前该民间婚姻仅在南里奥格兰德合法。
+detail_zh	10 年 来 巴 西 国 民 议 会 一 直 就 其 合 法 性 进 行 讨 论 目 前 这 种 民 间 婚 姻 只 在 南 里 奥 格 兰 德 rio grande do sul 是 合 法 的	10年来，巴西国民议会一直就其合法性进行讨论；目前这种民间婚姻只在南里奥格兰德（Rio Grande do Sul）是合法的。
 polish_zh	这 与 先 前 的 报 道 相 矛 盾 先 前 的 报 道 称 取 消 决 选 本 来 是 违 反 宪 法 的	这与先前的报道相矛盾；先前的报道称取消决选本来是违反宪法的。
 translate_en	这 与 先 前 的 报 道 相 矛 盾 先 前 的 报 道 称 取 消 决 选 本 来 是 违 反 宪 法 的	This contradicts earlier reports, which said that canceling the runoff was unconstitutional.
+brief_zh	这 与 先 前 的 报 道 相 矛 盾 先 前 的 报 道 称 取 消 决 选 本 来 是 违 反 宪 法 的	这与先前「取消决选违宪」的报道矛盾。
+detail_zh	这 与 先 前 的 报 道 相 矛 盾 先 前 的 报 道 称 取 消 决 选 本 来 是 违 反 宪 法 的	这与先前的报道相矛盾；先前的报道称取消决选本来是违反宪法的。
 polish_zh	一 些 科 学 家 认 为 三 角 龙 以 苏 铁 为 食 苏 铁 是 白 垩 纪 时 期 很 常 见 的 一 种 植 物	一些科学家认为三角龙以苏铁为食；苏铁是白垩纪时期很常见的一种植物。
 translate_en	一 些 科 学 家 认 为 三 角 龙 以 苏 铁 为 食 苏 铁 是 白 垩 纪 时 期 很 常 见 的 一 种 植 物	Some scientists believe Triceratops fed on cycads, a type of plant that was very common during the Cretaceous period.
+brief_zh	一 些 科 学 家 认 为 三 角 龙 以 苏 铁 为 食 苏 铁 是 白 垩 纪 时 期 很 常 见 的 一 种 植 物	有科学家认为三角龙吃白垩纪常见的苏铁。
+detail_zh	一 些 科 学 家 认 为 三 角 龙 以 苏 铁 为 食 苏 铁 是 白 垩 纪 时 期 很 常 见 的 一 种 植 物	一些科学家认为三角龙以苏铁为食；苏铁是白垩纪时期很常见的一种植物。
 polish_zh	在 这 些 动 乱 时 期 各 路 诸 侯 为 争 夺 王 位 而 发 生 激 烈 战 争	在这些动乱时期，各路诸侯为争夺王位而发生激烈战争。
 translate_en	在 这 些 动 乱 时 期 各 路 诸 侯 为 争 夺 王 位 而 发 生 激 烈 战 争	During these turbulent times, rival lords fought fierce wars for the throne.
+brief_zh	在 这 些 动 乱 时 期 各 路 诸 侯 为 争 夺 王 位 而 发 生 激 烈 战 争	动乱时期诸侯为王位激烈交战。
+detail_zh	在 这 些 动 乱 时 期 各 路 诸 侯 为 争 夺 王 位 而 发 生 激 烈 战 争	在这些动乱时期，各路诸侯为争夺王位而发生激烈战争。
 polish_zh	这 些 资 金 可 以 用 于 建 造 防 洪 房 屋 改 善 水 资 源 管 理 以 及 促 进 农 作 物 多 样 化	这些资金可以用于建造防洪房屋、改善水资源管理以及促进农作物多样化。
 translate_en	这 些 资 金 可 以 用 于 建 造 防 洪 房 屋 改 善 水 资 源 管 理 以 及 促 进 农 作 物 多 样 化	The funds can be used to build flood-resistant houses, improve water management, and promote crop diversification.
+brief_zh	这 些 资 金 可 以 用 于 建 造 防 洪 房 屋 改 善 水 资 源 管 理 以 及 促 进 农 作 物 多 样 化	资金可建防洪房屋、改善水资源、促作物多样化。
+detail_zh	这 些 资 金 可 以 用 于 建 造 防 洪 房 屋 改 善 水 资 源 管 理 以 及 促 进 农 作 物 多 样 化	这些资金可以用于建造防洪房屋、改善水资源管理以及促进农作物多样化。
 polish_zh	而 且 太 平 洋 海 啸 预 警 中 心 also the pacific tsunami warning center 也 表 示 并 未 发 现 海 啸 迹 象	而且太平洋海啸预警中心（Pacific Tsunami Warning Center）也表示并未发现海啸迹象。
 translate_en	而 且 太 平 洋 海 啸 预 警 中 心 also the pacific tsunami warning center 也 表 示 并 未 发 现 海 啸 迹 象	Moreover, the Pacific Tsunami Warning Center also said that no signs of a tsunami had been found.
+brief_zh	而 且 太 平 洋 海 啸 预 警 中 心 also the pacific tsunami warning center 也 表 示 并 未 发 现 海 啸 迹 象	太平洋海啸预警中心未发现海啸迹象。
+detail_zh	而 且 太 平 洋 海 啸 预 警 中 心 also the pacific tsunami warning center 也 表 示 并 未 发 现 海 啸 迹 象	而且太平洋海啸预警中心（Pacific Tsunami Warning Center）也表示并未发现海啸迹象。
 polish_zh	让 我 们 先 来 解 释 一 下 意 大 利 的 计 划 意 大 利 基 本 上 属 于 德 国 和 日 本 的 小 兄 弟	让我们先来解释一下意大利的计划：意大利基本上属于德国和日本的小兄弟。
 translate_en	让 我 们 先 来 解 释 一 下 意 大 利 的 计 划 意 大 利 基 本 上 属 于 德 国 和 日 本 的 小 兄 弟	Let us first explain Italy's plan: Italy is essentially the little brother of Germany and Japan.
+brief_zh	让 我 们 先 来 解 释 一 下 意 大 利 的 计 划 意 大 利 基 本 上 属 于 德 国 和 日 本 的 小 兄 弟	意大利的计划：它基本是德国和日本的小兄弟。
+detail_zh	让 我 们 先 来 解 释 一 下 意 大 利 的 计 划 意 大 利 基 本 上 属 于 德 国 和 日 本 的 小 兄 弟	让我们先来解释一下意大利的计划：意大利基本上属于德国和日本的小兄弟。
 polish_zh	古 墓 里 的 巨 额 财 富 已 不 在 墓 中 而 是 转 移 到 了 开 罗 的 埃 及 博 物 馆	古墓里的巨额财富已不在墓中，而是转移到了开罗的埃及博物馆。
 translate_en	古 墓 里 的 巨 额 财 富 已 不 在 墓 中 而 是 转 移 到 了 开 罗 的 埃 及 博 物 馆	The vast treasures of the tomb are no longer in it; they were moved to the Egyptian Museum in Cairo.
+brief_zh	古 墓 里 的 巨 额 财 富 已 不 在 墓 中 而 是 转 移 到 了 开 罗 的 埃 及 博 物 馆	古墓财富已移至开罗埃及博物馆。
+detail_zh	古 墓 里 的 巨 额 财 富 已 不 在 墓 中 而 是 转 移 到 了 开 罗 的 埃 及 博 物 馆	古墓里的巨额财富已不在墓中，而是转移到了开罗的埃及博物馆。
 polish_zh	辐 轮 的 发 明 使 亚 述 人 的 战 车 更 轻 便 更 迅 速 行 驶 起 来 可 以 更 轻 松 地 超 过 士 兵 和 其 他 战 车	辐轮的发明使亚述人的战车更轻便、更迅速，行驶起来可以更轻松地超过士兵和其他战车。
 translate_en	辐 轮 的 发 明 使 亚 述 人 的 战 车 更 轻 便 更 迅 速 行 驶 起 来 可 以 更 轻 松 地 超 过 士 兵 和 其 他 战 车	The invention of spoked wheels made Assyrian chariots lighter and faster, so they could easily overtake soldiers and other chariots.
+brief_zh	辐 轮 的 发 明 使 亚 述 人 的 战 车 更 轻 便 更 迅 速 行 驶 起 来 可 以 更 轻 松 地 超 过 士 兵 和 其 他 战 车	辐轮让亚述战车更轻快，能轻松超越士兵和其他战车。
+detail_zh	辐 轮 的 发 明 使 亚 述 人 的 战 车 更 轻 便 更 迅 速 行 驶 起 来 可 以 更 轻 松 地 超 过 士 兵 和 其 他 战 车	辐轮的发明使亚述人的战车更轻便、更迅速，行驶起来可以更轻松地超过士兵和其他战车。
 polish_zh	但 不 管 他 有 没 有 发 现 爱 斯 基 摩 人 当 时 已 经 在 那 里 生 活 了	但不管他有没有发现，爱斯基摩人当时已经在那里生活了。
 translate_en	但 不 管 他 有 没 有 发 现 爱 斯 基 摩 人 当 时 已 经 在 那 里 生 活 了	But whether or not he discovered it, Eskimos were already living there at the time.
+brief_zh	但 不 管 他 有 没 有 发 现 爱 斯 基 摩 人 当 时 已 经 在 那 里 生 活 了	爱斯基摩人当时已在那里生活。
+detail_zh	但 不 管 他 有 没 有 发 现 爱 斯 基 摩 人 当 时 已 经 在 那 里 生 活 了	但不管他有没有发现，爱斯基摩人当时已经在那里生活了。
 polish_zh	印 度 河 盆 地 的 文 明 发 展 繁 荣 该 文 明 因 此 得 名	印度河盆地的文明发展繁荣，该文明因此得名。
 translate_en	印 度 河 盆 地 的 文 明 发 展 繁 荣 该 文 明 因 此 得 名	Civilization developed and flourished in the Indus River basin, and the civilization is named after the river.
+brief_zh	印 度 河 盆 地 的 文 明 发 展 繁 荣 该 文 明 因 此 得 名	印度河盆地文明繁荣得名。
+detail_zh	印 度 河 盆 地 的 文 明 发 展 繁 荣 该 文 明 因 此 得 名	印度河盆地的文明发展繁荣，该文明因此得名。
 polish_zh	伊 拉 克 研 究 小 组 于 格 林 尼 治 时 间 gmt 今 天 12 点 提 交 了 报 告	伊拉克研究小组于格林治时间（GMT）今天12点提交了报告。
 translate_en	伊 拉 克 研 究 小 组 于 格 林 尼 治 时 间 gmt 今 天 12 点 提 交 了 报 告	The Iraq Study Group submitted its report at 12:00 GMT today.
+brief_zh	伊 拉 克 研 究 小 组 于 格 林 尼 治 时 间 gmt 今 天 12 点 提 交 了 报 告	伊拉克研究小组今日GMT 12点提交报告。
+detail_zh	伊 拉 克 研 究 小 组 于 格 林 尼 治 时 间 gmt 今 天 12 点 提 交 了 报 告	伊拉克研究小组于格林治时间（GMT）今天12点提交了报告。
 polish_zh	适 量 饮 用 含 酒 精 的 饮 料 酒 精 对 每 个 人 的 影 响 都 不 一 样 了 解 自 己 的 饮 酒 极 限 非 常 重 要	适量饮用含酒精的饮料；酒精对每个人的影响都不一样，了解自己的饮酒极限非常重要。
 translate_en	适 量 饮 用 含 酒 精 的 饮 料 酒 精 对 每 个 人 的 影 响 都 不 一 样 了 解 自 己 的 饮 酒 极 限 非 常 重 要	Drink alcoholic beverages in moderation; alcohol affects everyone differently, so knowing your drinking limit is very important.
+brief_zh	适 量 饮 用 含 酒 精 的 饮 料 酒 精 对 每 个 人 的 影 响 都 不 一 样 了 解 自 己 的 饮 酒 极 限 非 常 重 要	饮酒要适量，了解自己的极限很重要。
+detail_zh	适 量 饮 用 含 酒 精 的 饮 料 酒 精 对 每 个 人 的 影 响 都 不 一 样 了 解 自 己 的 饮 酒 极 限 非 常 重 要	适量饮用含酒精的饮料；酒精对每个人的影响都不一样，了解自己的饮酒极限非常重要。
 polish_zh	这 项 运 动 主 要 以 对 决 的 形 式 进 行 也 就 是 一 个 击 剑 手 与 另 一 个 击 剑 手 进 行 对 决	这项运动主要以对决的形式进行，也就是一个击剑手与另一个击剑手进行对决。
 translate_en	这 项 运 动 主 要 以 对 决 的 形 式 进 行 也 就 是 一 个 击 剑 手 与 另 一 个 击 剑 手 进 行 对 决	The sport is mainly conducted as duels, that is, one fencer facing another fencer.
+brief_zh	这 项 运 动 主 要 以 对 决 的 形 式 进 行 也 就 是 一 个 击 剑 手 与 另 一 个 击 剑 手 进 行 对 决	这项运动以击剑手一对一对决为主。
+detail_zh	这 项 运 动 主 要 以 对 决 的 形 式 进 行 也 就 是 一 个 击 剑 手 与 另 一 个 击 剑 手 进 行 对 决	这项运动主要以对决的形式进行，也就是一个击剑手与另一个击剑手进行对决。
 polish_zh	澳 大 利 亚 财 务 部 长 最 有 可 能 接 替 总 理 约 翰 霍 华 德 担 任 自 由 党 领 袖 的 彼 得 科 斯 特 洛 对 澳 大 利 亚 的 核 电 工 业 表 示 支 持	澳大利亚财务部长、最有可能接替总理约翰·霍华德担任自由党领袖的彼得·科斯特洛，对澳大利亚的核电工业表示支持。
 translate_en	澳 大 利 亚 财 务 部 长 最 有 可 能 接 替 总 理 约 翰 霍 华 德 担 任 自 由 党 领 袖 的 彼 得 科 斯 特 洛 对 澳 大 利 亚 的 核 电 工 业 表 示 支 持	Australian Treasurer Peter Costello, the most likely successor to Prime Minister John Howard as Liberal Party leader, expressed support for Australia's nuclear power industry.
+brief_zh	澳 大 利 亚 财 务 部 长 最 有 可 能 接 替 总 理 约 翰 霍 华 德 担 任 自 由 党 领 袖 的 彼 得 科 斯 特 洛 对 澳 大 利 亚 的 核 电 工 业 表 示 支 持	澳洲财长科斯特洛（有望接任自由党领袖）支持本国核电工业。
+detail_zh	澳 大 利 亚 财 务 部 长 最 有 可 能 接 替 总 理 约 翰 霍 华 德 担 任 自 由 党 领 袖 的 彼 得 科 斯 特 洛 对 澳 大 利 亚 的 核 电 工 业 表 示 支 持	澳大利亚财务部长、最有可能接替总理约翰·霍华德担任自由党领袖的彼得·科斯特洛，对澳大利亚的核电工业表示支持。
 polish_zh	单 日 徒 步 是 指 一 天 内 走 完 的 行 程 行 程 距 离 可 低 至 少 于 一 英 里	单日徒步是指一天内走完的行程，行程距离可低至少于一英里。
 translate_en	单 日 徒 步 是 指 一 天 内 走 完 的 行 程 行 程 距 离 可 低 至 少 于 一 英 里	Day hiking refers to a trip completed within a single day, with distances as short as less than a mile.
+brief_zh	单 日 徒 步 是 指 一 天 内 走 完 的 行 程 行 程 距 离 可 低 至 少 于 一 英 里	单日徒步指一天内走完，可短至不足一英里。
+detail_zh	单 日 徒 步 是 指 一 天 内 走 完 的 行 程 行 程 距 离 可 低 至 少 于 一 英 里	单日徒步是指一天内走完的行程，行程距离可低至少于一英里。
 polish_zh	这 让 它 们 有 了 更 多 小 面 积 空 间 来 躲 避 捕 食 者	这让它们有了更多小面积空间来躲避捕食者。
 translate_en	这 让 它 们 有 了 更 多 小 面 积 空 间 来 躲 避 捕 食 者	This gives them more small spaces in which to hide from predators.
+brief_zh	这 让 它 们 有 了 更 多 小 面 积 空 间 来 躲 避 捕 食 者	更多小空间助其躲避捕食者。
+detail_zh	这 让 它 们 有 了 更 多 小 面 积 空 间 来 躲 避 捕 食 者	这让它们有了更多小面积空间来躲避捕食者。
 polish_zh	在 国 家 独 立 初 期 新 加 坡 植 物 园 发 挥 其 专 业 知 识 所 长 帮 助 该 岛 成 为 了 一 座 热 带 花 园 城 市	在国家独立初期，新加坡植物园发挥其专业知识所长，帮助该岛成为了一座热带花园城市。
 translate_en	在 国 家 独 立 初 期 新 加 坡 植 物 园 发 挥 其 专 业 知 识 所 长 帮 助 该 岛 成 为 了 一 座 热 带 花 园 城 市	In the early years of national independence, the Singapore Botanic Gardens used its expertise to help the island become a tropical garden city.
+brief_zh	在 国 家 独 立 初 期 新 加 坡 植 物 园 发 挥 其 专 业 知 识 所 长 帮 助 该 岛 成 为 了 一 座 热 带 花 园 城 市	独立初期新加坡植物园以专业所长助该岛成为热带花园城市。
+detail_zh	在 国 家 独 立 初 期 新 加 坡 植 物 园 发 挥 其 专 业 知 识 所 长 帮 助 该 岛 成 为 了 一 座 热 带 花 园 城 市	在国家独立初期，新加坡植物园发挥其专业知识所长，帮助该岛成为了一座热带花园城市。
 polish_zh	詹 姆 斯 尤 因 将 军 率 700 名 民 兵 在 特 伦 顿 渡 口 渡 河 占 领 了 阿 森 皮 克 湾 上 的 桥 梁 阻 断 了 敌 军 逃 跑 的 路 径	詹姆斯·尤因将军率700名民兵在特伦顿渡口渡河，占领了阿森皮克湾上的桥梁，阻断了敌军逃跑的路径。
 translate_en	詹 姆 斯 尤 因 将 军 率 700 名 民 兵 在 特 伦 顿 渡 口 渡 河 占 领 了 阿 森 皮 克 湾 上 的 桥 梁 阻 断 了 敌 军 逃 跑 的 路 径	General James Ewing led 700 militia across the river at Trenton Ferry, seized the bridge over Assunpink Creek, and cut off the enemy's escape route.
+brief_zh	詹 姆 斯 尤 因 将 军 率 700 名 民 兵 在 特 伦 顿 渡 口 渡 河 占 领 了 阿 森 皮 克 湾 上 的 桥 梁 阻 断 了 敌 军 逃 跑 的 路 径	尤因将军率700民兵渡河占桥，断敌退路。
+detail_zh	詹 姆 斯 尤 因 将 军 率 700 名 民 兵 在 特 伦 顿 渡 口 渡 河 占 领 了 阿 森 皮 克 湾 上 的 桥 梁 阻 断 了 敌 军 逃 跑 的 路 径	詹姆斯·尤因将军率700名民兵在特伦顿渡口渡河，占领了阿森皮克湾上的桥梁，阻断了敌军逃跑的路径。
 polish_zh	害 虫 会 破 坏 食 物 引 起 刺 激 性 反 应 在 更 严 重 的 情 况 下 会 引 起 过 敏 反 应 传 播 毒 液 或 传 染 病	害虫会破坏食物、引起刺激性反应；在更严重的情况下会引起过敏反应、传播毒液或传染病。
 translate_en	害 虫 会 破 坏 食 物 引 起 刺 激 性 反 应 在 更 严 重 的 情 况 下 会 引 起 过 敏 反 应 传 播 毒 液 或 传 染 病	Pests damage food and cause irritant reactions; in more serious cases they can trigger allergic reactions or spread venom or infectious diseases.
+brief_zh	害 虫 会 破 坏 食 物 引 起 刺 激 性 反 应 在 更 严 重 的 情 况 下 会 引 起 过 敏 反 应 传 播 毒 液 或 传 染 病	害虫毁食物、致刺激，严重时引发过敏或传播毒液和传染病。
+detail_zh	害 虫 会 破 坏 食 物 引 起 刺 激 性 反 应 在 更 严 重 的 情 况 下 会 引 起 过 敏 反 应 传 播 毒 液 或 传 染 病	害虫会破坏食物、引起刺激性反应；在更严重的情况下会引起过敏反应、传播毒液或传染病。
 polish_zh	瑞 德 先 生 最 终 驾 驶 新 西 兰 a1gp 汽 车 黑 美 人 以 超 过 160 千 米 每 小 时 的 速 度 七 次 穿 过 桥 梁	瑞德先生最终驾驶新西兰A1GP汽车「黑美人」，以超过160千米每小时的速度七次穿过桥梁。
 translate_en	瑞 德 先 生 最 终 驾 驶 新 西 兰 a1gp 汽 车 黑 美 人 以 超 过 160 千 米 每 小 时 的 速 度 七 次 穿 过 桥 梁	Mr. Reid finally drove the New Zealand A1GP car "Black Beauty" across the bridge seven times at speeds exceeding 160 kilometers per hour.
+brief_zh	瑞 德 先 生 最 终 驾 驶 新 西 兰 a1gp 汽 车 黑 美 人 以 超 过 160 千 米 每 小 时 的 速 度 七 次 穿 过 桥 梁	瑞德驾「黑美人」A1GP赛车以超160km/h七次过桥。
+detail_zh	瑞 德 先 生 最 终 驾 驶 新 西 兰 a1gp 汽 车 黑 美 人 以 超 过 160 千 米 每 小 时 的 速 度 七 次 穿 过 桥 梁	瑞德先生最终驾驶新西兰A1GP汽车「黑美人」，以超过160千米每小时的速度七次穿过桥梁。
 polish_zh	不 过 令 人 奇 怪 的 是 这 里 的 手 机 服 务 比 沿 途 的 许 多 其 他 路 线 例 如 宾 夕 法 尼 亚 州 荒 原 要 强 得 多	不过令人奇怪的是，这里的手机服务比沿途的许多其他路线（例如宾夕法尼亚州荒原）要强得多。
 translate_en	不 过 令 人 奇 怪 的 是 这 里 的 手 机 服 务 比 沿 途 的 许 多 其 他 路 线 例 如 宾 夕 法 尼 亚 州 荒 原 要 强 得 多	Strangely, though, the cell phone service here is much stronger than on many other routes along the way, such as the Pennsylvania wilderness.
+brief_zh	不 过 令 人 奇 怪 的 是 这 里 的 手 机 服 务 比 沿 途 的 许 多 其 他 路 线 例 如 宾 夕 法 尼 亚 州 荒 原 要 强 得 多	奇怪的是这里手机信号远好于沿途其他路线。
+detail_zh	不 过 令 人 奇 怪 的 是 这 里 的 手 机 服 务 比 沿 途 的 许 多 其 他 路 线 例 如 宾 夕 法 尼 亚 州 荒 原 要 强 得 多	不过令人奇怪的是，这里的手机服务比沿途的许多其他路线（例如宾夕法尼亚州荒原）要强得多。
 polish_zh	净 水 的 方 法 有 很 多 有 些 对 特 定 的 污 染 更 有 效	净水的方法有很多，有些对特定的污染更有效。
 translate_en	净 水 的 方 法 有 很 多 有 些 对 特 定 的 污 染 更 有 效	There are many methods of water purification, and some are more effective against particular contaminants.
+brief_zh	净 水 的 方 法 有 很 多 有 些 对 特 定 的 污 染 更 有 效	净水方法多，各有针对性。
+detail_zh	净 水 的 方 法 有 很 多 有 些 对 特 定 的 污 染 更 有 效	净水的方法有很多，有些对特定的污染更有效。
 polish_zh	与 此 同 时 以 u 型 潜 艇 为 主 力 的 德 国 海 军 试 图 拦 截 这 场 运 输	与此同时，以U型潜艇为主力的德国海军试图拦截这场运输。
 translate_en	与 此 同 时 以 u 型 潜 艇 为 主 力 的 德 国 海 军 试 图 拦 截 这 场 运 输	Meanwhile, the German navy, with its U-boats as the main force, attempted to intercept the convoy.
+brief_zh	与 此 同 时 以 u 型 潜 艇 为 主 力 的 德 国 海 军 试 图 拦 截 这 场 运 输	德国海军以U型潜艇为主力试图拦截运输。
+detail_zh	与 此 同 时 以 u 型 潜 艇 为 主 力 的 德 国 海 军 试 图 拦 截 这 场 运 输	与此同时，以U型潜艇为主力的德国海军试图拦截这场运输。
 polish_zh	北 岩 银 行 在 2008 年 被 收 归 国 有 此 前 有 消 息 称 该 公 司 获 得 了 英 国 政 府 的 紧 急 援 助	北岩银行在2008年被收归国有，此前有消息称该公司获得了英国政府的紧急援助。
 translate_en	北 岩 银 行 在 2008 年 被 收 归 国 有 此 前 有 消 息 称 该 公 司 获 得 了 英 国 政 府 的 紧 急 援 助	Northern Rock was nationalized in 2008 after reports that the company had received emergency assistance from the British government.
+brief_zh	北 岩 银 行 在 2008 年 被 收 归 国 有 此 前 有 消 息 称 该 公 司 获 得 了 英 国 政 府 的 紧 急 援 助	北岩银行获英国政府紧急援助后于2008年国有化。
+detail_zh	北 岩 银 行 在 2008 年 被 收 归 国 有 此 前 有 消 息 称 该 公 司 获 得 了 英 国 政 府 的 紧 急 援 助	北岩银行在2008年被收归国有，此前有消息称该公司获得了英国政府的紧急援助。
 polish_zh	如 果 旅 行 时 随 身 携 带 笔 记 本 电 脑 或 平 板 电 脑 在 内 存 或 磁 盘 中 存 储 一 份 副 本 无 需 网 络 也 可 访 问	如果旅行时随身携带笔记本电脑或平板电脑，可在内存或磁盘中存储一份副本，无需网络也可访问。
 translate_en	如 果 旅 行 时 随 身 携 带 笔 记 本 电 脑 或 平 板 电 脑 在 内 存 或 磁 盘 中 存 储 一 份 副 本 无 需 网 络 也 可 访 问	If you carry a laptop or tablet while traveling, store a copy in memory or on disk so it can be accessed without a network.
+brief_zh	如 果 旅 行 时 随 身 携 带 笔 记 本 电 脑 或 平 板 电 脑 在 内 存 或 磁 盘 中 存 储 一 份 副 本 无 需 网 络 也 可 访 问	旅行带电脑时存一份本地副本，无网也能访问。
+detail_zh	如 果 旅 行 时 随 身 携 带 笔 记 本 电 脑 或 平 板 电 脑 在 内 存 或 磁 盘 中 存 储 一 份 副 本 无 需 网 络 也 可 访 问	如果旅行时随身携带笔记本电脑或平板电脑，可在内存或磁盘中存储一份副本，无需网络也可访问。
 polish_zh	收 敛 思 维 模 式 是 通 过 结 合 不 同 的 想 法 或 领 域 来 寻 找 解 决 方 案 的 问 题 解 决 技 巧	收敛思维模式是通过结合不同的想法或领域来寻找解决方案的问题解决技巧。
 translate_en	收 敛 思 维 模 式 是 通 过 结 合 不 同 的 想 法 或 领 域 来 寻 找 解 决 方 案 的 问 题 解 决 技 巧	Convergent thinking is a problem-solving technique that finds solutions by combining different ideas or fields.
+brief_zh	收 敛 思 维 模 式 是 通 过 结 合 不 同 的 想 法 或 领 域 来 寻 找 解 决 方 案 的 问 题 解 决 技 巧	收敛思维靠整合不同想法或领域找解决方案。
+detail_zh	收 敛 思 维 模 式 是 通 过 结 合 不 同 的 想 法 或 领 域 来 寻 找 解 决 方 案 的 问 题 解 决 技 巧	收敛思维模式是通过结合不同的想法或领域来寻找解决方案的问题解决技巧。
 polish_zh	每 期 节 目 还 会 向 孩 子 们 提 供 建 议 向 推 荐 他 们 在 去 图 书 馆 时 应 当 查 阅 的 书 籍	每期节目还会向孩子们提供建议，向他们推荐在去图书馆时应当查阅的书籍。
 translate_en	每 期 节 目 还 会 向 孩 子 们 提 供 建 议 向 推 荐 他 们 在 去 图 书 馆 时 应 当 查 阅 的 书 籍	Each episode also offers children advice, recommending books they should look up when they go to the library.
+brief_zh	每 期 节 目 还 会 向 孩 子 们 提 供 建 议 向 推 荐 他 们 在 去 图 书 馆 时 应 当 查 阅 的 书 籍	节目每期给孩子建议并推荐图书馆应查阅的书。
+detail_zh	每 期 节 目 还 会 向 孩 子 们 提 供 建 议 向 推 荐 他 们 在 去 图 书 馆 时 应 当 查 阅 的 书 籍	每期节目还会向孩子们提供建议，向他们推荐在去图书馆时应当查阅的书籍。
 polish_zh	该 定 义 存 在 地 域 差 异 北 美 洲 等 地 的 年 份 限 制 可 能 比 欧 洲 短	该定义存在地域差异，北美洲等地的年份限制可能比欧洲短。
 translate_en	该 定 义 存 在 地 域 差 异 北 美 洲 等 地 的 年 份 限 制 可 能 比 欧 洲 短	The definition varies by region; the year limit in North America and elsewhere may be shorter than in Europe.
+brief_zh	该 定 义 存 在 地 域 差 异 北 美 洲 等 地 的 年 份 限 制 可 能 比 欧 洲 短	该定义有地域差异，北美限制更短。
+detail_zh	该 定 义 存 在 地 域 差 异 北 美 洲 等 地 的 年 份 限 制 可 能 比 欧 洲 短	该定义存在地域差异，北美洲等地的年份限制可能比欧洲短。
 polish_zh	无 论 看 起 来 是 多 么 的 温 顺 野 牛 麋 鹿 驼 鹿 熊 等 几 乎 所 有 的 大 型 动 物 都 有 可 能 攻 击 人 类	无论看起来是多么的温顺，野牛、麋鹿、驼鹿、熊等几乎所有的大型动物都有可能攻击人类。
 translate_en	无 论 看 起 来 是 多 么 的 温 顺 野 牛 麋 鹿 驼 鹿 熊 等 几 乎 所 有 的 大 型 动 物 都 有 可 能 攻 击 人 类	No matter how docile they appear, almost all large animals — bison, elk, moose, bears — may attack humans.
+brief_zh	无 论 看 起 来 是 多 么 的 温 顺 野 牛 麋 鹿 驼 鹿 熊 等 几 乎 所 有 的 大 型 动 物 都 有 可 能 攻 击 人 类	再温顺的大型动物（野牛、麋鹿、熊等）也可能攻击人类。
+detail_zh	无 论 看 起 来 是 多 么 的 温 顺 野 牛 麋 鹿 驼 鹿 熊 等 几 乎 所 有 的 大 型 动 物 都 有 可 能 攻 击 人 类	无论看起来是多么的温顺，野牛、麋鹿、驼鹿、熊等几乎所有的大型动物都有可能攻击人类。
 polish_zh	每 年 数 十 名 游 客 都 会 因 未 能 保 持 适 当 距 离 而 受 伤 这 些 动 物 体 型 庞 大 充 满 野 性 具 有 潜 在 的 危 险 性 因 此 请 给 它 们 留 出 一 些 空 间	每年数十名游客都会因未能保持适当距离而受伤；这些动物体型庞大、充满野性、具有潜在的危险性，因此请给它们留出一些空间。
 translate_en	每 年 数 十 名 游 客 都 会 因 未 能 保 持 适 当 距 离 而 受 伤 这 些 动 物 体 型 庞 大 充 满 野 性 具 有 潜 在 的 危 险 性 因 此 请 给 它 们 留 出 一 些 空 间	Every year dozens of visitors are injured by failing to keep a proper distance; these animals are large, wild, and potentially dangerous, so please give them some space.
+brief_zh	每 年 数 十 名 游 客 都 会 因 未 能 保 持 适 当 距 离 而 受 伤 这 些 动 物 体 型 庞 大 充 满 野 性 具 有 潜 在 的 危 险 性 因 此 请 给 它 们 留 出 一 些 空 间	每年数十游客因距离不当被大型野生动物所伤，请留出空间。
+detail_zh	每 年 数 十 名 游 客 都 会 因 未 能 保 持 适 当 距 离 而 受 伤 这 些 动 物 体 型 庞 大 充 满 野 性 具 有 潜 在 的 危 险 性 因 此 请 给 它 们 留 出 一 些 空 间	每年数十名游客都会因未能保持适当距离而受伤；这些动物体型庞大、充满野性、具有潜在的危险性，因此请给它们留出一些空间。
 polish_zh	这 些 关 系 对 道 路 设 施 的 规 划 设 计 和 运 营 有 帮 助	这些关系对道路设施的规划、设计和运营有帮助。
 translate_en	这 些 关 系 对 道 路 设 施 的 规 划 设 计 和 运 营 有 帮 助	These relationships help with the planning, design, and operation of road facilities.
+brief_zh	这 些 关 系 对 道 路 设 施 的 规 划 设 计 和 运 营 有 帮 助	这些关系有助道路设施规划运营。
+detail_zh	这 些 关 系 对 道 路 设 施 的 规 划 设 计 和 运 营 有 帮 助	这些关系对道路设施的规划、设计和运营有帮助。
 polish_zh	雅 虎 和 微 软 服 务 的 用 户 总 和 与 美 国 在 线 的 客 户 数 不 相 上 下	雅虎和微软服务的用户总和与美国在线的客户数不相上下。
 translate_en	雅 虎 和 微 软 服 务 的 用 户 总 和 与 美 国 在 线 的 客 户 数 不 相 上 下	The combined users of Yahoo and Microsoft services rival the customer count of AOL.
+brief_zh	雅 虎 和 微 软 服 务 的 用 户 总 和 与 美 国 在 线 的 客 户 数 不 相 上 下	雅虎加微软的用户总数与美国在线相当。
+detail_zh	雅 虎 和 微 软 服 务 的 用 户 总 和 与 美 国 在 线 的 客 户 数 不 相 上 下	雅虎和微软服务的用户总和与美国在线的客户数不相上下。
 polish_zh	每 列 火 车 都 有 metroplus 和 metro 车 厢 前 者 总 是 在 火 车 靠 近 开 普 敦 的 那 一 端	每列火车都有Metroplus和Metro车厢，前者总是在火车靠近开普敦的那一端。
 translate_en	每 列 火 车 都 有 metroplus 和 metro 车 厢 前 者 总 是 在 火 车 靠 近 开 普 敦 的 那 一 端	Every train has Metroplus and Metro carriages; the former is always at the end of the train nearer Cape Town.
+brief_zh	每 列 火 车 都 有 metroplus 和 metro 车 厢 前 者 总 是 在 火 车 靠 近 开 普 敦 的 那 一 端	Metroplus车厢总在靠开普敦一端。
+detail_zh	每 列 火 车 都 有 metroplus 和 metro 车 厢 前 者 总 是 在 火 车 靠 近 开 普 敦 的 那 一 端	每列火车都有Metroplus和Metro车厢，前者总是在火车靠近开普敦的那一端。
 polish_zh	俄 罗 斯 地 面 控 制 中 心 启 动 了 飞 机 空 间 站 随 即 恢 复 正 常 姿 态	俄罗斯地面控制中心启动了飞行器，空间站随即恢复正常姿态。
 translate_en	俄 罗 斯 地 面 控 制 中 心 启 动 了 飞 机 空 间 站 随 即 恢 复 正 常 姿 态	The Russian ground control center activated the spacecraft, and the space station immediately returned to its normal orientation.
+brief_zh	俄 罗 斯 地 面 控 制 中 心 启 动 了 飞 机 空 间 站 随 即 恢 复 正 常 姿 态	俄控制中心启动飞行器，空间站恢复姿态。
+detail_zh	俄 罗 斯 地 面 控 制 中 心 启 动 了 飞 机 空 间 站 随 即 恢 复 正 常 姿 态	俄罗斯地面控制中心启动了飞行器，空间站随即恢复正常姿态。
 polish_zh	如 果 有 人 想 着 去 看 这 具 木 乃 伊 从 棺 材 中 移 出 来 时 受 到 损 坏 那 么 这 些 人 可 要 大 失 所 望 了 因 为 大 家 只 能 看 到 木 乃 伊 的 头 部 和 肩 膀	如果有人想去看这具木乃伊从棺木中移出来时受到的损坏，那么这些人可要大失所望了，因为大家只能看到木乃伊的头部和肩膀。
 translate_en	如 果 有 人 想 着 去 看 这 具 木 乃 伊 从 棺 材 中 移 出 来 时 受 到 损 坏 那 么 这 些 人 可 要 大 失 所 望 了 因 为 大 家 只 能 看 到 木 乃 伊 的 头 部 和 肩 膀	Anyone hoping to see the damage done to the mummy when it was removed from its coffin will be greatly disappointed, because only the head and shoulders of the mummy are visible.
+brief_zh	如 果 有 人 想 着 去 看 这 具 木 乃 伊 从 棺 材 中 移 出 来 时 受 到 损 坏 那 么 这 些 人 可 要 大 失 所 望 了 因 为 大 家 只 能 看 到 木 乃 伊 的 头 部 和 肩 膀	想看出棺损坏的人会失望：只能看到木乃伊头肩部。
+detail_zh	如 果 有 人 想 着 去 看 这 具 木 乃 伊 从 棺 材 中 移 出 来 时 受 到 损 坏 那 么 这 些 人 可 要 大 失 所 望 了 因 为 大 家 只 能 看 到 木 乃 伊 的 头 部 和 肩 膀	如果有人想去看这具木乃伊从棺木中移出来时受到的损坏，那么这些人可要大失所望了，因为大家只能看到木乃伊的头部和肩膀。
 polish_zh	女 性 在 参 观 修 道 院 时 必 须 穿 裙 子 裙 子 必 须 及 膝 肩 膀 也 要 覆 盖 住	女性在参观修道院时必须穿裙子，裙子必须及膝，肩膀也要覆盖住。
 translate_en	女 性 在 参 观 修 道 院 时 必 须 穿 裙 子 裙 子 必 须 及 膝 肩 膀 也 要 覆 盖 住	Women visiting the monastery must wear a skirt that reaches the knees, and the shoulders must also be covered.
+brief_zh	女 性 在 参 观 修 道 院 时 必 须 穿 裙 子 裙 子 必 须 及 膝 肩 膀 也 要 覆 盖 住	女性参观修道院须穿及膝裙并遮住肩膀。
+detail_zh	女 性 在 参 观 修 道 院 时 必 须 穿 裙 子 裙 子 必 须 及 膝 肩 膀 也 要 覆 盖 住	女性在参观修道院时必须穿裙子，裙子必须及膝，肩膀也要覆盖住。
 polish_zh	两 种 流 行 的 内 容 理 论 分 别 是 马 斯 洛 的 需 求 层 次 理 论 和 赫 茨 贝 格 的 双 因 素 理 论	两种流行的内容理论分别是马斯洛的需求层次理论和赫茨伯格的双因素理论。
 translate_en	两 种 流 行 的 内 容 理 论 分 别 是 马 斯 洛 的 需 求 层 次 理 论 和 赫 茨 贝 格 的 双 因 素 理 论	The two popular content theories are Maslow's hierarchy of needs and Herzberg's two-factor theory.
+brief_zh	两 种 流 行 的 内 容 理 论 分 别 是 马 斯 洛 的 需 求 层 次 理 论 和 赫 茨 贝 格 的 双 因 素 理 论	流行的内容理论是马斯洛需求层次与赫茨伯格双因素理论。
+detail_zh	两 种 流 行 的 内 容 理 论 分 别 是 马 斯 洛 的 需 求 层 次 理 论 和 赫 茨 贝 格 的 双 因 素 理 论	两种流行的内容理论分别是马斯洛的需求层次理论和赫茨伯格的双因素理论。
 polish_zh	这 些 网 站 也 有 好 处 比 如 可 以 轻 松 创 建 一 个 包 含 博 客 视 频 照 片 等 内 容 的 班 级 页 面	这些网站也有好处，比如可以轻松创建一个包含播客、视频、照片等内容的班级页面。
 translate_en	这 些 网 站 也 有 好 处 比 如 可 以 轻 松 创 建 一 个 包 含 博 客 视 频 照 片 等 内 容 的 班 级 页 面	These websites also have advantages, such as easily creating a class page containing podcasts, videos, photos, and other content.
+brief_zh	这 些 网 站 也 有 好 处 比 如 可 以 轻 松 创 建 一 个 包 含 博 客 视 频 照 片 等 内 容 的 班 级 页 面	这类网站可轻松建含播客、视频、照片的班级页面。
+detail_zh	这 些 网 站 也 有 好 处 比 如 可 以 轻 松 创 建 一 个 包 含 博 客 视 频 照 片 等 内 容 的 班 级 页 面	这些网站也有好处，比如可以轻松创建一个包含播客、视频、照片等内容的班级页面。
 polish_zh	约 翰 逊 落 后 7 分 以 2243 分 排 名 第 二	约翰逊落后7分，以2243分排名第二。
 translate_en	约 翰 逊 落 后 7 分 以 2243 分 排 名 第 二	Johnson is seven points behind, ranked second with 2,243 points.
+brief_zh	约 翰 逊 落 后 7 分 以 2243 分 排 名 第 二	约翰逊落后7分，居第二。
+detail_zh	约 翰 逊 落 后 7 分 以 2243 分 排 名 第 二	约翰逊落后7分，以2243分排名第二。
 polish_zh	尽 管 他 如 此 评 说 他 表 示 会 支 持 英 国 选 手 参 加 伦 敦 主 办 的 2012 年 奥 运 会	尽管他如此评说，他表示会支持英国选手参加伦敦主办的2012年奥运会。
 translate_en	尽 管 他 如 此 评 说 他 表 示 会 支 持 英 国 选 手 参 加 伦 敦 主 办 的 2012 年 奥 运 会	Despite his remarks, he said he would support British athletes competing in the 2012 Olympic Games hosted by London.
+brief_zh	尽 管 他 如 此 评 说 他 表 示 会 支 持 英 国 选 手 参 加 伦 敦 主 办 的 2012 年 奥 运 会	他虽如此说，仍表示支持英国选手参加伦敦奥运。
+detail_zh	尽 管 他 如 此 评 说 他 表 示 会 支 持 英 国 选 手 参 加 伦 敦 主 办 的 2012 年 奥 运 会	尽管他如此评说，他表示会支持英国选手参加伦敦主办的2012年奥运会。
 polish_zh	我 们 都 非 常 震 惊 这 位 母 亲 表 示	「我们都非常震惊，」这位母亲表示。
 translate_en	我 们 都 非 常 震 惊 这 位 母 亲 表 示	"We were all shocked," the mother said.
+brief_zh	我 们 都 非 常 震 惊 这 位 母 亲 表 示	这位母亲说大家都非常震惊。
+detail_zh	我 们 都 非 常 震 惊 这 位 母 亲 表 示	「我们都非常震惊，」这位母亲表示。
 polish_zh	在 一 些 音 乐 节 绝 大 多 数 参 加 者 选 择 在 现 场 露 营 而 且 大 部 分 参 加 者 认 为 这 是 音 乐 节 体 验 极 为 重 要 的 一 部 分	在一些音乐节，绝大多数参加者选择在现场露营，而且大部分参加者认为这是音乐节体验极为重要的一部分。
 translate_en	在 一 些 音 乐 节 绝 大 多 数 参 加 者 选 择 在 现 场 露 营 而 且 大 部 分 参 加 者 认 为 这 是 音 乐 节 体 验 极 为 重 要 的 一 部 分	At some music festivals, the vast majority of attendees choose to camp on site, and most consider this an extremely important part of the festival experience.
+brief_zh	在 一 些 音 乐 节 绝 大 多 数 参 加 者 选 择 在 现 场 露 营 而 且 大 部 分 参 加 者 认 为 这 是 音 乐 节 体 验 极 为 重 要 的 一 部 分	多数音乐节参加者选择现场露营并视其为体验的重要部分。
+detail_zh	在 一 些 音 乐 节 绝 大 多 数 参 加 者 选 择 在 现 场 露 营 而 且 大 部 分 参 加 者 认 为 这 是 音 乐 节 体 验 极 为 重 要 的 一 部 分	在一些音乐节，绝大多数参加者选择在现场露营，而且大部分参加者认为这是音乐节体验极为重要的一部分。
 polish_zh	起 诉 的 主 要 负 责 部 门 皇 家 检 控 署 向 记 者 表 示 至 少 在 提 起 公 诉 之 前 将 不 会 再 发 表 进 一 步 言 论	起诉的主要负责部门皇家检控署向记者表示，至少在提起公诉之前将不会再发表进一步言论。
 translate_en	起 诉 的 主 要 负 责 部 门 皇 家 检 控 署 向 记 者 表 示 至 少 在 提 起 公 诉 之 前 将 不 会 再 发 表 进 一 步 言 论	The Crown Prosecution Service, the main department responsible for prosecutions, told reporters it would make no further comment at least until charges are brought.
+brief_zh	起 诉 的 主 要 负 责 部 门 皇 家 检 控 署 向 记 者 表 示 至 少 在 提 起 公 诉 之 前 将 不 会 再 发 表 进 一 步 言 论	皇家检控署称提起公诉前不再发表评论。
+detail_zh	起 诉 的 主 要 负 责 部 门 皇 家 检 控 署 向 记 者 表 示 至 少 在 提 起 公 诉 之 前 将 不 会 再 发 表 进 一 步 言 论	起诉的主要负责部门皇家检控署向记者表示，至少在提起公诉之前将不会再发表进一步言论。
 polish_zh	变 焦 镜 头 的 缺 点 是 要 想 实 现 一 定 的 焦 距 范 围 所 需 的 焦 距 复 杂 度 和 透 镜 元 件 的 数 量 远 远 大 于 定 焦 镜 头	变焦镜头的缺点是，要想实现一定的焦距范围，所需的光学复杂度和透镜元件的数量远远大于定焦镜头。
 translate_en	变 焦 镜 头 的 缺 点 是 要 想 实 现 一 定 的 焦 距 范 围 所 需 的 焦 距 复 杂 度 和 透 镜 元 件 的 数 量 远 远 大 于 定 焦 镜 头	The disadvantage of zoom lenses is that achieving a given focal-length range requires far greater optical complexity and many more lens elements than a prime lens.
+brief_zh	变 焦 镜 头 的 缺 点 是 要 想 实 现 一 定 的 焦 距 范 围 所 需 的 焦 距 复 杂 度 和 透 镜 元 件 的 数 量 远 远 大 于 定 焦 镜 头	变焦镜头为覆盖焦距范围，光学复杂度和镜片数远超定焦。
+detail_zh	变 焦 镜 头 的 缺 点 是 要 想 实 现 一 定 的 焦 距 范 围 所 需 的 焦 距 复 杂 度 和 透 镜 元 件 的 数 量 远 远 大 于 定 焦 镜 头	变焦镜头的缺点是，要想实现一定的焦距范围，所需的光学复杂度和透镜元件的数量远远大于定焦镜头。
 polish_zh	约 三 千 年 后 也 就 是 在 1610 年 意 大 利 的 天 文 学 家 伽 利 略 伽 利 莱 galileo galilei 使 用 望 远 镜 观 测 天 体 发 现 金 星 具 有 着 与 月 球 一 致 的 相 位	约三千年后，也就是在1610年，意大利的天文学家伽利略·伽利莱（Galileo Galilei）使用望远镜观测天体，发现金星具有着与月球一致的相位。
 translate_en	约 三 千 年 后 也 就 是 在 1610 年 意 大 利 的 天 文 学 家 伽 利 略 伽 利 莱 galileo galilei 使 用 望 远 镜 观 测 天 体 发 现 金 星 具 有 着 与 月 球 一 致 的 相 位	About three thousand years later, in 1610, the Italian astronomer Galileo Galilei used a telescope to observe celestial bodies and discovered that Venus exhibits phases like those of the Moon.
+brief_zh	约 三 千 年 后 也 就 是 在 1610 年 意 大 利 的 天 文 学 家 伽 利 略 伽 利 莱 galileo galilei 使 用 望 远 镜 观 测 天 体 发 现 金 星 具 有 着 与 月 球 一 致 的 相 位	1610年伽利略用望远镜发现金星有与月球一致的相位。
+detail_zh	约 三 千 年 后 也 就 是 在 1610 年 意 大 利 的 天 文 学 家 伽 利 略 伽 利 莱 galileo galilei 使 用 望 远 镜 观 测 天 体 发 现 金 星 具 有 着 与 月 球 一 致 的 相 位	约三千年后，也就是在1610年，意大利的天文学家伽利略·伽利莱（Galileo Galilei）使用望远镜观测天体，发现金星具有着与月球一致的相位。
 polish_zh	偶 尔 会 有 专 门 的 航 空 旅 行 团 前 往 内 陆 旅 行 参 加 登 山 活 动 或 前 往 南 北 极 的 大 型 基 地	偶尔会有专门的航空旅行团前往内陆旅行、参加登山活动，或前往南北极的大型基地。
 translate_en	偶 尔 会 有 专 门 的 航 空 旅 行 团 前 往 内 陆 旅 行 参 加 登 山 活 动 或 前 往 南 北 极 的 大 型 基 地	Occasionally, specialized air-tour groups travel inland, take part in mountaineering activities, or visit large bases at the North and South Poles.
+brief_zh	偶 尔 会 有 专 门 的 航 空 旅 行 团 前 往 内 陆 旅 行 参 加 登 山 活 动 或 前 往 南 北 极 的 大 型 基 地	偶有专门航空旅行团去内陆、登山或南北极基地。
+detail_zh	偶 尔 会 有 专 门 的 航 空 旅 行 团 前 往 内 陆 旅 行 参 加 登 山 活 动 或 前 往 南 北 极 的 大 型 基 地	偶尔会有专门的航空旅行团前往内陆旅行、参加登山活动，或前往南北极的大型基地。
 polish_zh	猎 蝽 和 臭 虫 都 是 留 巢 昆 虫 适 应 在 宿 主 的 巢 穴 或 住 房 中 生 活	猎蝽和臭虫都是留巢昆虫，适应在宿主的巢穴或住房中生活。
 translate_en	猎 蝽 和 臭 虫 都 是 留 巢 昆 虫 适 应 在 宿 主 的 巢 穴 或 住 房 中 生 活	Assassin bugs and bed bugs are both nest-dwelling insects, adapted to living in the nests or dwellings of their hosts.
+brief_zh	猎 蝽 和 臭 虫 都 是 留 巢 昆 虫 适 应 在 宿 主 的 巢 穴 或 住 房 中 生 活	猎蝽和臭虫都是留巢昆虫。
+detail_zh	猎 蝽 和 臭 虫 都 是 留 巢 昆 虫 适 应 在 宿 主 的 巢 穴 或 住 房 中 生 活	猎蝽和臭虫都是留巢昆虫，适应在宿主的巢穴或住房中生活。
 polish_zh	这 款 游 戏 以 第 二 次 费 卢 杰 fallujah 战 役 为 背 景 这 是 美 军 和 伊 拉 克 军 队 之 间 的 一 场 恶 战	这款游戏以第二次费卢杰（Fallujah）战役为背景，这是美军和伊拉克军队之间的一场恶战。
 translate_en	这 款 游 戏 以 第 二 次 费 卢 杰 fallujah 战 役 为 背 景 这 是 美 军 和 伊 拉 克 军 队 之 间 的 一 场 恶 战	The game is set against the backdrop of the Second Battle of Fallujah, a fierce fight between U.S. and Iraqi forces.
+brief_zh	这 款 游 戏 以 第 二 次 费 卢 杰 fallujah 战 役 为 背 景 这 是 美 军 和 伊 拉 克 军 队 之 间 的 一 场 恶 战	游戏以美伊军队恶战第二次费卢杰战役为背景。
+detail_zh	这 款 游 戏 以 第 二 次 费 卢 杰 fallujah 战 役 为 背 景 这 是 美 军 和 伊 拉 克 军 队 之 间 的 一 场 恶 战	这款游戏以第二次费卢杰（Fallujah）战役为背景，这是美军和伊拉克军队之间的一场恶战。
 polish_zh	格 里 德 利 gridley 或 斯 塔 克 stark 在 栅 栏 前 100 英 尺 30 米 处 放 置 一 根 木 桩 并 命 令 在 正 规 军 经 过 前 不 许 开 火	格里德利（Gridley）或斯塔克（Stark）在栅栏前100英尺（30米）处放置一根木桩，并命令在正规军经过前不许开火。
 translate_en	格 里 德 利 gridley 或 斯 塔 克 stark 在 栅 栏 前 100 英 尺 30 米 处 放 置 一 根 木 桩 并 命 令 在 正 规 军 经 过 前 不 许 开 火	Gridley or Stark placed a stake 100 feet (30 meters) in front of the fence and ordered that no one fire until the regulars had passed it.
+brief_zh	格 里 德 利 gridley 或 斯 塔 克 stark 在 栅 栏 前 100 英 尺 30 米 处 放 置 一 根 木 桩 并 命 令 在 正 规 军 经 过 前 不 许 开 火	格里德利或斯塔克在栅栏前30米设桩，命令正规军过桩前不许开火。
+detail_zh	格 里 德 利 gridley 或 斯 塔 克 stark 在 栅 栏 前 100 英 尺 30 米 处 放 置 一 根 木 桩 并 命 令 在 正 规 军 经 过 前 不 许 开 火	格里德利（Gridley）或斯塔克（Stark）在栅栏前100英尺（30米）处放置一根木桩，并命令在正规军经过前不许开火。
 polish_zh	在 尝 试 将 电 影 转 换 成 dvd 格 式 时 最 常 见 的 问 题 之 一 是 过 度 扫 描	在尝试将电影转换成DVD格式时，最常见的问题之一是过度扫描。
 translate_en	在 尝 试 将 电 影 转 换 成 dvd 格 式 时 最 常 见 的 问 题 之 一 是 过 度 扫 描	One of the most common problems when trying to convert films to DVD format is overscan.
+brief_zh	在 尝 试 将 电 影 转 换 成 dvd 格 式 时 最 常 见 的 问 题 之 一 是 过 度 扫 描	电影转DVD最常见问题之一是过度扫描。
+detail_zh	在 尝 试 将 电 影 转 换 成 dvd 格 式 时 最 常 见 的 问 题 之 一 是 过 度 扫 描	在尝试将电影转换成DVD格式时，最常见的问题之一是过度扫描。
 polish_zh	在 18 世 纪 的 最 后 几 年 越 南 人 也 入 侵 了 柬 埔 寨	在18世纪的最后几年，越南人也入侵了柬埔寨。
 translate_en	在 18 世 纪 的 最 后 几 年 越 南 人 也 入 侵 了 柬 埔 寨	In the last years of the 18th century, the Vietnamese also invaded Cambodia.
+brief_zh	在 18 世 纪 的 最 后 几 年 越 南 人 也 入 侵 了 柬 埔 寨	18世纪末越南人也入侵了柬埔寨。
+detail_zh	在 18 世 纪 的 最 后 几 年 越 南 人 也 入 侵 了 柬 埔 寨	在18世纪的最后几年，越南人也入侵了柬埔寨。
 polish_zh	鉴 于 风 暴 远 未 登 陆 目 前 仍 难 以 评 估 它 对 美 国 或 加 勒 比 地 区 的 潜 在 影 响	鉴于风暴远未登陆，目前仍难以评估它对美国或加勒比地区的潜在影响。
 translate_en	鉴 于 风 暴 远 未 登 陆 目 前 仍 难 以 评 估 它 对 美 国 或 加 勒 比 地 区 的 潜 在 影 响	Since the storm is still far from landfall, its potential impact on the United States or the Caribbean remains difficult to assess.
+brief_zh	鉴 于 风 暴 远 未 登 陆 目 前 仍 难 以 评 估 它 对 美 国 或 加 勒 比 地 区 的 潜 在 影 响	风暴尚未登陆，对美国和加勒比的潜在影响仍难评估。
+detail_zh	鉴 于 风 暴 远 未 登 陆 目 前 仍 难 以 评 估 它 对 美 国 或 加 勒 比 地 区 的 潜 在 影 响	鉴于风暴远未登陆，目前仍难以评估它对美国或加勒比地区的潜在影响。
 polish_zh	他 在 1950 年 毕 业 于 弗 吉 尼 亚 大 学 艺 术 与 科 学 学 院 并 且 是 该 校 的 重 要 捐 赠 者	他在1950年毕业于弗吉尼亚大学艺术与科学学院，并且是该校的重要捐赠者。
 translate_en	他 在 1950 年 毕 业 于 弗 吉 尼 亚 大 学 艺 术 与 科 学 学 院 并 且 是 该 校 的 重 要 捐 赠 者	He graduated from the College of Arts and Sciences at the University of Virginia in 1950 and is a major donor to the school.
+brief_zh	他 在 1950 年 毕 业 于 弗 吉 尼 亚 大 学 艺 术 与 科 学 学 院 并 且 是 该 校 的 重 要 捐 赠 者	他1950年毕业于弗吉尼亚大学，是该校重要捐赠者。
+detail_zh	他 在 1950 年 毕 业 于 弗 吉 尼 亚 大 学 艺 术 与 科 学 学 院 并 且 是 该 校 的 重 要 捐 赠 者	他在1950年毕业于弗吉尼亚大学艺术与科学学院，并且是该校的重要捐赠者。
 polish_zh	从 那 以 后 这 位 巴 西 人 代 表 该 俱 乐 部 参 加 了 全 部 比 赛 中 的 53 场 并 打 进 了 24 球	从那以后，这位巴西人代表该俱乐部参加了全部比赛中的53场，并打进了24球。
 translate_en	从 那 以 后 这 位 巴 西 人 代 表 该 俱 乐 部 参 加 了 全 部 比 赛 中 的 53 场 并 打 进 了 24 球	Since then the Brazilian has played 53 of the club's matches in all competitions and scored 24 goals.
+brief_zh	从 那 以 后 这 位 巴 西 人 代 表 该 俱 乐 部 参 加 了 全 部 比 赛 中 的 53 场 并 打 进 了 24 球	此后这位巴西人为俱乐部出场53次进24球。
+detail_zh	从 那 以 后 这 位 巴 西 人 代 表 该 俱 乐 部 参 加 了 全 部 比 赛 中 的 53 场 并 打 进 了 24 球	从那以后，这位巴西人代表该俱乐部参加了全部比赛中的53场，并打进了24球。
 polish_zh	传 染 病 是 由 包 括 病 毒 细 菌 真 菌 和 其 他 寄 生 物 在 内 的 病 原 体 引 起 的 疾 病	传染病是由包括病毒、细菌、真菌和其他寄生物在内的病原体引起的疾病。
 translate_en	传 染 病 是 由 包 括 病 毒 细 菌 真 菌 和 其 他 寄 生 物 在 内 的 病 原 体 引 起 的 疾 病	Infectious diseases are illnesses caused by pathogens including viruses, bacteria, fungi, and other parasites.
+brief_zh	传 染 病 是 由 包 括 病 毒 细 菌 真 菌 和 其 他 寄 生 物 在 内 的 病 原 体 引 起 的 疾 病	传染病由病毒、细菌、真菌等病原体引起。
+detail_zh	传 染 病 是 由 包 括 病 毒 细 菌 真 菌 和 其 他 寄 生 物 在 内 的 病 原 体 引 起 的 疾 病	传染病是由包括病毒、细菌、真菌和其他寄生物在内的病原体引起的疾病。
 polish_zh	拉 脱 维 亚 和 斯 洛 伐 克 都 推 迟 了 加 入 acta 的 进 程	拉脱维亚和斯洛伐克都推迟了加入ACTA的进程。
 translate_en	拉 脱 维 亚 和 斯 洛 伐 克 都 推 迟 了 加 入 acta 的 进 程	Both Latvia and Slovakia postponed the process of joining ACTA.
+brief_zh	拉 脱 维 亚 和 斯 洛 伐 克 都 推 迟 了 加 入 acta 的 进 程	拉脱维亚、斯洛伐克缓签ACTA。
+detail_zh	拉 脱 维 亚 和 斯 洛 伐 克 都 推 迟 了 加 入 acta 的 进 程	拉脱维亚和斯洛伐克都推迟了加入ACTA的进程。
 polish_zh	上 周 裸 体 新 闻 naked news 宣 布 将 推 出 三 档 新 的 广 播 节 目 以 此 大 幅 增 加 其 在 新 闻 报 道 中 的 国 际 语 言 授 权	上周，「裸体新闻」（Naked News）宣布将推出三档新的广播节目，以此大幅增加其在新闻报道中的国际语言授权。
 translate_en	上 周 裸 体 新 闻 naked news 宣 布 将 推 出 三 档 新 的 广 播 节 目 以 此 大 幅 增 加 其 在 新 闻 报 道 中 的 国 际 语 言 授 权	Last week, Naked News announced that it would launch three new broadcast programs, greatly expanding its international language licensing in news reporting.
+brief_zh	上 周 裸 体 新 闻 naked news 宣 布 将 推 出 三 档 新 的 广 播 节 目 以 此 大 幅 增 加 其 在 新 闻 报 道 中 的 国 际 语 言 授 权	裸体新闻将推三档新节目，大幅扩展国际语言授权。
+detail_zh	上 周 裸 体 新 闻 naked news 宣 布 将 推 出 三 档 新 的 广 播 节 目 以 此 大 幅 增 加 其 在 新 闻 报 道 中 的 国 际 语 言 授 权	上周，「裸体新闻」（Naked News）宣布将推出三档新的广播节目，以此大幅增加其在新闻报道中的国际语言授权。
 polish_zh	这 一 概 念 来 自 中 国 梅 花 是 中 国 人 喜 闻 乐 见 的 一 种 花 卉	这一概念来自中国；梅花是中国人喜闻乐见的一种花卉。
 translate_en	这 一 概 念 来 自 中 国 梅 花 是 中 国 人 喜 闻 乐 见 的 一 种 花 卉	The concept comes from China; the plum blossom is a flower much loved by the Chinese people.
+brief_zh	这 一 概 念 来 自 中 国 梅 花 是 中 国 人 喜 闻 乐 见 的 一 种 花 卉	该概念源自中国，梅花深受中国人喜爱。
+detail_zh	这 一 概 念 来 自 中 国 梅 花 是 中 国 人 喜 闻 乐 见 的 一 种 花 卉	这一概念来自中国；梅花是中国人喜闻乐见的一种花卉。
 polish_zh	据 报 道 讨 论 的 其 他 议 题 包 括 对 两 国 来 说 都 神 圣 的 耶 路 撒 冷 的 未 来 状 态 和 约 旦 河 谷 问 题	据报道，讨论的其他议题包括对两国来说都神圣的耶路撒冷的未来状态和约旦河谷问题。
 translate_en	据 报 道 讨 论 的 其 他 议 题 包 括 对 两 国 来 说 都 神 圣 的 耶 路 撒 冷 的 未 来 状 态 和 约 旦 河 谷 问 题	Other topics reportedly discussed included the future status of Jerusalem, sacred to both peoples, and the question of the Jordan Valley.
+brief_zh	据 报 道 讨 论 的 其 他 议 题 包 括 对 两 国 来 说 都 神 圣 的 耶 路 撒 冷 的 未 来 状 态 和 约 旦 河 谷 问 题	其他议题包括耶路撒冷未来地位与约旦河谷问题。
+detail_zh	据 报 道 讨 论 的 其 他 议 题 包 括 对 两 国 来 说 都 神 圣 的 耶 路 撒 冷 的 未 来 状 态 和 约 旦 河 谷 问 题	据报道，讨论的其他议题包括对两国来说都神圣的耶路撒冷的未来状态和约旦河谷问题。
 polish_zh	禁 止 同 性 民 事 结 合 的 第 二 个 语 句 未 能 通 过 这 可 能 会 为 未 来 的 同 性 婚 姻 打 开 大 门	禁止同性民事结合的第二个语句未能通过，这可能会为未来的同性婚姻打开大门。
 translate_en	禁 止 同 性 民 事 结 合 的 第 二 个 语 句 未 能 通 过 这 可 能 会 为 未 来 的 同 性 婚 姻 打 开 大 门	The second sentence banning same-sex civil unions failed to pass, which may open the door to same-sex marriage in the future.
+brief_zh	禁 止 同 性 民 事 结 合 的 第 二 个 语 句 未 能 通 过 这 可 能 会 为 未 来 的 同 性 婚 姻 打 开 大 门	禁止同性民事结合的语句未通过，或为同性婚姻开门。
+detail_zh	禁 止 同 性 民 事 结 合 的 第 二 个 语 句 未 能 通 过 这 可 能 会 为 未 来 的 同 性 婚 姻 打 开 大 门	禁止同性民事结合的第二个语句未能通过，这可能会为未来的同性婚姻打开大门。
 polish_zh	蒙得维的亚位于亚热带地区；在夏季月份气温常常超过 30°c	蒙得维的亚位于亚热带地区；在夏季月份气温常常超过30°C。
 translate_en	蒙得维的亚位于亚热带地区；在夏季月份气温常常超过 30°c	Montevideo lies in a subtropical zone; in the summer months temperatures often exceed 30°C.
+brief_zh	蒙得维的亚位于亚热带地区；在夏季月份气温常常超过 30°c	蒙得维的亚属亚热带，夏季常超30°C。
+detail_zh	蒙得维的亚位于亚热带地区；在夏季月份气温常常超过 30°c	蒙得维的亚位于亚热带地区；在夏季月份气温常常超过30°C。
 polish_zh	阀 门 打 开 后 系 统 将 释 放 压 力 原 油 可 通 过 油 垫 流 入 一 个 可 容 纳 55000 桶 230 万 加 仑 原 油 的 油 箱	阀门打开后，系统将释放压力，原油可通过油垫流入一个可容纳55000桶（230万加仑）原油的油箱。
 translate_en	阀 门 打 开 后 系 统 将 释 放 压 力 原 油 可 通 过 油 垫 流 入 一 个 可 容 纳 55000 桶 230 万 加 仑 原 油 的 油 箱	Once the valve is opened, the system releases pressure, and crude oil can flow through an oil cushion into a tank capable of holding 55,000 barrels (2.3 million gallons) of crude.
+brief_zh	阀 门 打 开 后 系 统 将 释 放 压 力 原 油 可 通 过 油 垫 流 入 一 个 可 容 纳 55000 桶 230 万 加 仑 原 油 的 油 箱	阀门打开释压后，原油经油垫流入5.5万桶油箱。
+detail_zh	阀 门 打 开 后 系 统 将 释 放 压 力 原 油 可 通 过 油 垫 流 入 一 个 可 容 纳 55000 桶 230 万 加 仑 原 油 的 油 箱	阀门打开后，系统将释放压力，原油可通过油垫流入一个可容纳55000桶（230万加仑）原油的油箱。
 polish_zh	1994 年 阿 塞 拜 疆 的 亚 美 尼 亚 族 纳 戈 尔 诺 卡 拉 巴 赫 地 区 向 阿 塞 拜 疆 人 发 动 了 战 争	1994年，阿塞拜疆的亚美尼亚族纳戈尔诺-卡拉巴赫地区向阿塞拜疆人发动了战争。
 translate_en	1994 年 阿 塞 拜 疆 的 亚 美 尼 亚 族 纳 戈 尔 诺 卡 拉 巴 赫 地 区 向 阿 塞 拜 疆 人 发 动 了 战 争	In 1994, the ethnic Armenian Nagorno-Karabakh region of Azerbaijan waged war against the Azerbaijanis.
+brief_zh	1994 年 阿 塞 拜 疆 的 亚 美 尼 亚 族 纳 戈 尔 诺 卡 拉 巴 赫 地 区 向 阿 塞 拜 疆 人 发 动 了 战 争	1994年纳卡地区亚美尼亚族对阿塞拜疆人开战。
+detail_zh	1994 年 阿 塞 拜 疆 的 亚 美 尼 亚 族 纳 戈 尔 诺 卡 拉 巴 赫 地 区 向 阿 塞 拜 疆 人 发 动 了 战 争	1994年，阿塞拜疆的亚美尼亚族纳戈尔诺-卡拉巴赫地区向阿塞拜疆人发动了战争。
 polish_zh	到 目 前 为 止 人 类 是 最 善 于 读 懂 他 人 心 思 的 物 种	到目前为止，人类是最善于读懂他人心思的物种。
 translate_en	到 目 前 为 止 人 类 是 最 善 于 读 懂 他 人 心 思 的 物 种	So far, humans are the species best at reading other minds.
+brief_zh	到 目 前 为 止 人 类 是 最 善 于 读 懂 他 人 心 思 的 物 种	人类是最善读懂他人心思的物种。
+detail_zh	到 目 前 为 止 人 类 是 最 善 于 读 懂 他 人 心 思 的 物 种	到目前为止，人类是最善于读懂他人心思的物种。
 polish_zh	摩 尔 多 瓦 是 一 个 多 民 族 共 和 国 饱 受 民 族 冲 突 之 苦	摩尔多瓦是一个多民族共和国，饱受民族冲突之苦。
 translate_en	摩 尔 多 瓦 是 一 个 多 民 族 共 和 国 饱 受 民 族 冲 突 之 苦	Moldova is a multi-ethnic republic that has suffered greatly from ethnic conflict.
+brief_zh	摩 尔 多 瓦 是 一 个 多 民 族 共 和 国 饱 受 民 族 冲 突 之 苦	摩尔多瓦饱受民族冲突之苦。
+detail_zh	摩 尔 多 瓦 是 一 个 多 民 族 共 和 国 饱 受 民 族 冲 突 之 苦	摩尔多瓦是一个多民族共和国，饱受民族冲突之苦。
 polish_zh	太 阳 并 没 有 像 地 球 那 样 可 以 站 在 上 面 的 地 壳 整 个 太 阳 是 由 气 体 火 和 等 离 子 体 组 成 的	太阳并没有像地球那样可以站在上面的地壳；整个太阳是由气体、火和等离子体组成的。
 translate_en	太 阳 并 没 有 像 地 球 那 样 可 以 站 在 上 面 的 地 壳 整 个 太 阳 是 由 气 体 火 和 等 离 子 体 组 成 的	The Sun does not have a crust like Earth's that one could stand on; the entire Sun is made of gas, fire, and plasma.
+brief_zh	太 阳 并 没 有 像 地 球 那 样 可 以 站 在 上 面 的 地 壳 整 个 太 阳 是 由 气 体 火 和 等 离 子 体 组 成 的	太阳没有可站立的地壳，全由气体、火和等离子体构成。
+detail_zh	太 阳 并 没 有 像 地 球 那 样 可 以 站 在 上 面 的 地 壳 整 个 太 阳 是 由 气 体 火 和 等 离 子 体 组 成 的	太阳并没有像地球那样可以站在上面的地壳；整个太阳是由气体、火和等离子体组成的。
 polish_zh	刚 开 始 时 漏 斗 状 云 从 雷 暴 云 中 向 下 伸 展 当 它 们 接 触 地 面 时 就 变 成 了 龙 卷 风	刚开始时，漏斗状云从雷暴云中向下伸展；当它们接触地面时，就变成了龙卷风。
 translate_en	刚 开 始 时 漏 斗 状 云 从 雷 暴 云 中 向 下 伸 展 当 它 们 接 触 地 面 时 就 变 成 了 龙 卷 风	At first, funnel clouds extend downward from thunderclouds; when they touch the ground, they become tornadoes.
+brief_zh	刚 开 始 时 漏 斗 状 云 从 雷 暴 云 中 向 下 伸 展 当 它 们 接 触 地 面 时 就 变 成 了 龙 卷 风	漏斗云从雷暴云下伸，触地即成龙卷风。
+detail_zh	刚 开 始 时 漏 斗 状 云 从 雷 暴 云 中 向 下 伸 展 当 它 们 接 触 地 面 时 就 变 成 了 龙 卷 风	刚开始时，漏斗状云从雷暴云中向下伸展；当它们接触地面时，就变成了龙卷风。
 polish_zh	高 斯 林 和 斯 通 分 别 获 得 了 最 佳 男 主 角 和 最 佳 女 主 角 的 提 名	高斯林和斯通分别获得了最佳男主角和最佳女主角的提名。
 translate_en	高 斯 林 和 斯 通 分 别 获 得 了 最 佳 男 主 角 和 最 佳 女 主 角 的 提 名	Gosling and Stone received nominations for Best Actor and Best Actress, respectively.
+brief_zh	高 斯 林 和 斯 通 分 别 获 得 了 最 佳 男 主 角 和 最 佳 女 主 角 的 提 名	高斯林和斯通分获最佳男女主角提名。
+detail_zh	高 斯 林 和 斯 通 分 别 获 得 了 最 佳 男 主 角 和 最 佳 女 主 角 的 提 名	高斯林和斯通分别获得了最佳男主角和最佳女主角的提名。
 polish_zh	尽 管 政 治 谈 判 失 败 但 摩 尔 多 瓦 这 两 个 地 区 的 经 济 联 系 得 以 重 建	尽管政治谈判失败，但摩尔多瓦这两个地区的经济联系得以重建。
 translate_en	尽 管 政 治 谈 判 失 败 但 摩 尔 多 瓦 这 两 个 地 区 的 经 济 联 系 得 以 重 建	Despite the failure of political negotiations, economic ties between the two regions of Moldova were rebuilt.
+brief_zh	尽 管 政 治 谈 判 失 败 但 摩 尔 多 瓦 这 两 个 地 区 的 经 济 联 系 得 以 重 建	政治谈判虽败，摩尔多瓦两地区经济联系重建。
+detail_zh	尽 管 政 治 谈 判 失 败 但 摩 尔 多 瓦 这 两 个 地 区 的 经 济 联 系 得 以 重 建	尽管政治谈判失败，但摩尔多瓦这两个地区的经济联系得以重建。
 polish_zh	但 有 新 的 证 据 表 明 莫 里 奥 里 人 属 于 大 陆 毛 利 人 族 群 他 们 从 新 西 兰 移 居 到 查 塔 姆 群 岛 发 展 出 了 自 己 独 特 的 崇 尚 和 平 的 文 化	但有新的证据表明，莫里奥里人属于大陆毛利人族群；他们从新西兰移居到查塔姆群岛，发展出了自己独特的崇尚和平的文化。
 translate_en	但 有 新 的 证 据 表 明 莫 里 奥 里 人 属 于 大 陆 毛 利 人 族 群 他 们 从 新 西 兰 移 居 到 查 塔 姆 群 岛 发 展 出 了 自 己 独 特 的 崇 尚 和 平 的 文 化	But new evidence indicates that the Moriori belonged to the mainland Māori people; they migrated from New Zealand to the Chatham Islands and developed their own distinct peace-loving culture.
+brief_zh	但 有 新 的 证 据 表 明 莫 里 奥 里 人 属 于 大 陆 毛 利 人 族 群 他 们 从 新 西 兰 移 居 到 查 塔 姆 群 岛 发 展 出 了 自 己 独 特 的 崇 尚 和 平 的 文 化	新证据表明莫里奥里人属大陆毛利族群，迁居查塔姆群岛后发展出崇尚和平的独特文化。
+detail_zh	但 有 新 的 证 据 表 明 莫 里 奥 里 人 属 于 大 陆 毛 利 人 族 群 他 们 从 新 西 兰 移 居 到 查 塔 姆 群 岛 发 展 出 了 自 己 独 特 的 崇 尚 和 平 的 文 化	但有新的证据表明，莫里奥里人属于大陆毛利人族群；他们从新西兰移居到查塔姆群岛，发展出了自己独特的崇尚和平的文化。
 polish_zh	入 境 检 查 站 通 常 是 走 下 飞 机 轮 船 或 其 他 交 通 工 具 后 经 过 的 第 一 站	入境检查站通常是走下飞机、轮船或其他交通工具后经过的第一站。
 translate_en	入 境 检 查 站 通 常 是 走 下 飞 机 轮 船 或 其 他 交 通 工 具 后 经 过 的 第 一 站	The immigration checkpoint is usually the first stop after stepping off a plane, ship, or other means of transport.
+brief_zh	入 境 检 查 站 通 常 是 走 下 飞 机 轮 船 或 其 他 交 通 工 具 后 经 过 的 第 一 站	入境检查站是下交通工具后的第一站。
+detail_zh	入 境 检 查 站 通 常 是 走 下 飞 机 轮 船 或 其 他 交 通 工 具 后 经 过 的 第 一 站	入境检查站通常是走下飞机、轮船或其他交通工具后经过的第一站。
 polish_zh	新 华 社 报 道 称 政 府 调 查 人 员 周 三 发 现 了 两 个 黑 匣 子 飞 行 记 录 仪	新华社报道称，政府调查人员周三发现了两个黑匣子飞行记录仪。
 translate_en	新 华 社 报 道 称 政 府 调 查 人 员 周 三 发 现 了 两 个 黑 匣 子 飞 行 记 录 仪	Xinhua reported that government investigators found the two black-box flight recorders on Wednesday.
+brief_zh	新 华 社 报 道 称 政 府 调 查 人 员 周 三 发 现 了 两 个 黑 匣 子 飞 行 记 录 仪	新华社：调查人员周三找到两个黑匣子。
+detail_zh	新 华 社 报 道 称 政 府 调 查 人 员 周 三 发 现 了 两 个 黑 匣 子 飞 行 记 录 仪	新华社报道称，政府调查人员周三发现了两个黑匣子飞行记录仪。
 polish_zh	今 年 4 月 格 林 法 官 针 对 该 机 构 颁 布 了 一 项 临 时 禁 令 强 制 释 放 那 些 被 关 押 24 小 时 以 上 却 没 有 得 到 法 庭 专 员 听 证 的 人	今年4月，格林法官针对该机构颁布了一项临时禁令，强制释放那些被关押24小时以上却没有得到法庭专员听证的人。
 translate_en	今 年 4 月 格 林 法 官 针 对 该 机 构 颁 布 了 一 项 临 时 禁 令 强 制 释 放 那 些 被 关 押 24 小 时 以 上 却 没 有 得 到 法 庭 专 员 听 证 的 人	In April this year, Judge Green issued a temporary injunction against the agency, ordering the release of people held for more than 24 hours without a hearing before a court commissioner.
+brief_zh	今 年 4 月 格 林 法 官 针 对 该 机 构 颁 布 了 一 项 临 时 禁 令 强 制 释 放 那 些 被 关 押 24 小 时 以 上 却 没 有 得 到 法 庭 专 员 听 证 的 人	格林法官4月颁临时禁令，强制释放被扣超24小时未获听证者。
+detail_zh	今 年 4 月 格 林 法 官 针 对 该 机 构 颁 布 了 一 项 临 时 禁 令 强 制 释 放 那 些 被 关 押 24 小 时 以 上 却 没 有 得 到 法 庭 专 员 听 证 的 人	今年4月，格林法官针对该机构颁布了一项临时禁令，强制释放那些被关押24小时以上却没有得到法庭专员听证的人。
 polish_zh	拍 摄 野 生 动 物 通 常 会 用 到 长 焦 镜 头 不 过 拍 鸟 群 或 微 小 生 物 之 类 的 对 象 则 需 要 其 他 镜 头	拍摄野生动物通常会用到长焦镜头，不过拍鸟群或微小生物之类的对象则需要其他镜头。
 translate_en	拍 摄 野 生 动 物 通 常 会 用 到 长 焦 镜 头 不 过 拍 鸟 群 或 微 小 生 物 之 类 的 对 象 则 需 要 其 他 镜 头	Wildlife photography usually calls for telephoto lenses, though other lenses are needed for subjects like flocks of birds or tiny creatures.
+brief_zh	拍 摄 野 生 动 物 通 常 会 用 到 长 焦 镜 头 不 过 拍 鸟 群 或 微 小 生 物 之 类 的 对 象 则 需 要 其 他 镜 头	拍野生动物通常用长焦，拍鸟群或微小生物则需其他镜头。
+detail_zh	拍 摄 野 生 动 物 通 常 会 用 到 长 焦 镜 头 不 过 拍 鸟 群 或 微 小 生 物 之 类 的 对 象 则 需 要 其 他 镜 头	拍摄野生动物通常会用到长焦镜头，不过拍鸟群或微小生物之类的对象则需要其他镜头。
 polish_zh	如 果 你 想 帮 助 别 人 时 受 伤 你 只 会 使 事 情 变 得 更 糟	如果你想帮助别人时受伤，你只会使事情变得更糟。
 translate_en	如 果 你 想 帮 助 别 人 时 受 伤 你 只 会 使 事 情 变 得 更 糟	If you get injured while trying to help others, you will only make things worse.
+brief_zh	如 果 你 想 帮 助 别 人 时 受 伤 你 只 会 使 事 情 变 得 更 糟	帮人时若自己受伤，只会更糟。
+detail_zh	如 果 你 想 帮 助 别 人 时 受 伤 你 只 会 使 事 情 变 得 更 糟	如果你想帮助别人时受伤，你只会使事情变得更糟。
 polish_zh	鲨 鱼 确 实 存 在 但 它 们 很 少 攻 击 人 类 多 数 鲨 鱼 害 怕 人 类 会 游 走	鲨鱼确实存在，但它们很少攻击人类；多数鲨鱼害怕人类，会游走。
 translate_en	鲨 鱼 确 实 存 在 但 它 们 很 少 攻 击 人 类 多 数 鲨 鱼 害 怕 人 类 会 游 走	Sharks do exist, but they rarely attack humans; most sharks are afraid of people and swim away.
+brief_zh	鲨 鱼 确 实 存 在 但 它 们 很 少 攻 击 人 类 多 数 鲨 鱼 害 怕 人 类 会 游 走	鲨鱼很少攻击人类，多数怕人会游走。
+detail_zh	鲨 鱼 确 实 存 在 但 它 们 很 少 攻 击 人 类 多 数 鲨 鱼 害 怕 人 类 会 游 走	鲨鱼确实存在，但它们很少攻击人类；多数鲨鱼害怕人类，会游走。
 polish_zh	由 于 表 面 张 力 的 作 用 钢 针 可 以 浮 在 水 面 上	由于表面张力的作用，钢针可以浮在水面上。
 translate_en	由 于 表 面 张 力 的 作 用 钢 针 可 以 浮 在 水 面 上	Thanks to surface tension, a steel needle can float on the surface of water.
+brief_zh	由 于 表 面 张 力 的 作 用 钢 针 可 以 浮 在 水 面 上	表面张力使钢针能浮在水面。
+detail_zh	由 于 表 面 张 力 的 作 用 钢 针 可 以 浮 在 水 面 上	由于表面张力的作用，钢针可以浮在水面上。
 polish_zh	请 确 认 你 打 算 乘 坐 的 公 交 车 将 会 进 入 希 伯 伦 而 不 仅 仅 是 去 附 近 的 基 亚 特 阿 巴 kiryat arba 犹 太 定 居 点	请确认你打算乘坐的公交车将会进入希伯伦，而不仅仅是去附近的基亚特·阿巴（Kiryat Arba）犹太定居点。
 translate_en	请 确 认 你 打 算 乘 坐 的 公 交 车 将 会 进 入 希 伯 伦 而 不 仅 仅 是 去 附 近 的 基 亚 特 阿 巴 kiryat arba 犹 太 定 居 点	Please make sure the bus you intend to take actually goes into Hebron, and not just to the nearby Kiryat Arba settlement.
+brief_zh	请 确 认 你 打 算 乘 坐 的 公 交 车 将 会 进 入 希 伯 伦 而 不 仅 仅 是 去 附 近 的 基 亚 特 阿 巴 kiryat arba 犹 太 定 居 点	请确认公交车真进希伯伦，而非只到附近的基亚特·阿巴。
+detail_zh	请 确 认 你 打 算 乘 坐 的 公 交 车 将 会 进 入 希 伯 伦 而 不 仅 仅 是 去 附 近 的 基 亚 特 阿 巴 kiryat arba 犹 太 定 居 点	请确认你打算乘坐的公交车将会进入希伯伦，而不仅仅是去附近的基亚特·阿巴（Kiryat Arba）犹太定居点。
 polish_zh	此 外 写 博 客 也 迫 使 学 生 对 周 遭 世 界 更 具 洞 察 力 为 满 足 观 众 兴 趣 学 生 们 受 此 鼓 舞 变 得 聪 明 和 有 趣 起 来	此外，写播客也迫使学生对周遭世界更具洞察力；为满足观众兴趣，学生们受此鼓舞变得聪明和有趣起来。
 translate_en	此 外 写 博 客 也 迫 使 学 生 对 周 遭 世 界 更 具 洞 察 力 为 满 足 观 众 兴 趣 学 生 们 受 此 鼓 舞 变 得 聪 明 和 有 趣 起 来	In addition, writing podcasts forces students to be more insightful about the world around them; motivated to interest their audience, students become smarter and more engaging.
+brief_zh	此 外 写 博 客 也 迫 使 学 生 对 周 遭 世 界 更 具 洞 察 力 为 满 足 观 众 兴 趣 学 生 们 受 此 鼓 舞 变 得 聪 明 和 有 趣 起 来	写播客促使学生更具洞察力，为吸引观众变得更聪明有趣。
+detail_zh	此 外 写 博 客 也 迫 使 学 生 对 周 遭 世 界 更 具 洞 察 力 为 满 足 观 众 兴 趣 学 生 们 受 此 鼓 舞 变 得 聪 明 和 有 趣 起 来	此外，写播客也迫使学生对周遭世界更具洞察力；为满足观众兴趣，学生们受此鼓舞变得聪明和有趣起来。
 polish_zh	泰诺人 taínos 和加勒比人 caribes 最先来到这个岛上定居加勒比人是讲阿拉瓦克语 arawakan 的民族大约于公元前 10000 年来到这里	泰诺人（Taínos）和加勒比人（Caribes）最先来到这个岛上定居；加勒比人是讲阿拉瓦克语（Arawakan）的民族，大约于公元前10000年来到这里。
 translate_en	泰诺人 taínos 和加勒比人 caribes 最先来到这个岛上定居加勒比人是讲阿拉瓦克语 arawakan 的民族大约于公元前 10000 年来到这里	The Taíno and Carib peoples were the first to settle on this island; the Caribs were an Arawakan-speaking people who arrived here around 10,000 BC.
+brief_zh	泰诺人 taínos 和加勒比人 caribes 最先来到这个岛上定居加勒比人是讲阿拉瓦克语 arawakan 的民族大约于公元前 10000 年来到这里	泰诺人和加勒比人最早定居此岛，后者讲阿拉瓦克语，约公元前10000年到来。
+detail_zh	泰诺人 taínos 和加勒比人 caribes 最先来到这个岛上定居加勒比人是讲阿拉瓦克语 arawakan 的民族大约于公元前 10000 年来到这里	泰诺人（Taínos）和加勒比人（Caribes）最先来到这个岛上定居；加勒比人是讲阿拉瓦克语（Arawakan）的民族，大约于公元前10000年来到这里。
 polish_zh	截 至 周 三 下 午 油 箱 的 排 气 口 仍 在 漏 油 这 很 可 能 是 由 油 箱 内 部 的 热 膨 胀 造 成 的	截至周三下午，油箱的排气口仍在漏油，这很可能是由油箱内部的热膨胀造成的。
 translate_en	截 至 周 三 下 午 油 箱 的 排 气 口 仍 在 漏 油 这 很 可 能 是 由 油 箱 内 部 的 热 膨 胀 造 成 的	As of Wednesday afternoon, the tank's vent was still leaking oil, most likely caused by thermal expansion inside the tank.
+brief_zh	截 至 周 三 下 午 油 箱 的 排 气 口 仍 在 漏 油 这 很 可 能 是 由 油 箱 内 部 的 热 膨 胀 造 成 的	周三下午油箱排气口仍漏油，疑因内部热膨胀。
+detail_zh	截 至 周 三 下 午 油 箱 的 排 气 口 仍 在 漏 油 这 很 可 能 是 由 油 箱 内 部 的 热 膨 胀 造 成 的	截至周三下午，油箱的排气口仍在漏油，这很可能是由油箱内部的热膨胀造成的。
 polish_zh	气 态 氮 仍 具 有 与 液 态 氮 相 同 的 性 质 液 态 氮 的 密 度 更 大 但 是 分 子 还 是 一 样 的	气态氮仍具有与液态氮相同的性质；液态氮的密度更大，但是分子还是一样的。
 translate_en	气 态 氮 仍 具 有 与 液 态 氮 相 同 的 性 质 液 态 氮 的 密 度 更 大 但 是 分 子 还 是 一 样 的	Gaseous nitrogen still has the same properties as liquid nitrogen; liquid nitrogen is denser, but the molecules are the same.
+brief_zh	气 态 氮 仍 具 有 与 液 态 氮 相 同 的 性 质 液 态 氮 的 密 度 更 大 但 是 分 子 还 是 一 样 的	气态氮性质同液态氮，只是密度更小、分子一样。
+detail_zh	气 态 氮 仍 具 有 与 液 态 氮 相 同 的 性 质 液 态 氮 的 密 度 更 大 但 是 分 子 还 是 一 样 的	气态氮仍具有与液态氮相同的性质；液态氮的密度更大，但是分子还是一样的。
 polish_zh	传 统 上 王 位 继 承 人 在 完 成 学 业 后 会 直 接 入 伍	传统上，王位继承人在完成学业后会直接入伍。
 translate_en	传 统 上 王 位 继 承 人 在 完 成 学 业 后 会 直 接 入 伍	Traditionally, the heir to the throne enters military service directly after completing his studies.
+brief_zh	传 统 上 王 位 继 承 人 在 完 成 学 业 后 会 直 接 入 伍	王位继承人完成学业即入伍。
+detail_zh	传 统 上 王 位 继 承 人 在 完 成 学 业 后 会 直 接 入 伍	传统上，王位继承人在完成学业后会直接入伍。
 polish_zh	现 代 教 育 集 团 指 控 他 未 经 授 权 就 在 公 交 车 上 刊 登 大 型 广 告 并 谎 称 自 己 是 首 席 英 语 教 师	现代教育集团指控他未经授权就在公交车上刊登大型广告，并谎称自己是首席英语教师。
 translate_en	现 代 教 育 集 团 指 控 他 未 经 授 权 就 在 公 交 车 上 刊 登 大 型 广 告 并 谎 称 自 己 是 首 席 英 语 教 师	The Modern Education Group accused him of placing large advertisements on buses without authorization and falsely claiming to be the chief English teacher.
+brief_zh	现 代 教 育 集 团 指 控 他 未 经 授 权 就 在 公 交 车 上 刊 登 大 型 广 告 并 谎 称 自 己 是 首 席 英 语 教 师	现代教育集团指控他擅登公交广告并谎称首席英语教师。
+detail_zh	现 代 教 育 集 团 指 控 他 未 经 授 权 就 在 公 交 车 上 刊 登 大 型 广 告 并 谎 称 自 己 是 首 席 英 语 教 师	现代教育集团指控他未经授权就在公交车上刊登大型广告，并谎称自己是首席英语教师。
 polish_zh	在 容 积 为 104,500 桶 的 蓄 水 池 的 下 面 另 一 个 二 级 防 泄 漏 围 护 区 还 没 有 完 全 填 满	在容积为104,500桶的蓄水池的下面，另一个二级防泄漏围护区还没有完全填满。
 translate_en	在 容 积 为 104,500 桶 的 蓄 水 池 的 下 面 另 一 个 二 级 防 泄 漏 围 护 区 还 没 有 完 全 填 满	Beneath the 104,500-barrel reservoir, another secondary containment area has not yet completely filled.
+brief_zh	在 容 积 为 104,500 桶 的 蓄 水 池 的 下 面 另 一 个 二 级 防 泄 漏 围 护 区 还 没 有 完 全 填 满	10.45万桶蓄水池下的二级防漏围护区尚未填满。
+detail_zh	在 容 积 为 104,500 桶 的 蓄 水 池 的 下 面 另 一 个 二 级 防 泄 漏 围 护 区 还 没 有 完 全 填 满	在容积为104,500桶的蓄水池的下面，另一个二级防泄漏围护区还没有完全填满。
 polish_zh	这 个 术 语 源 于 人 们 对 臭 虫 的 熟 悉 臭 虫 是 一 种 非 常 适 应 寄 生 于 人 类 的 昆 虫	这个术语源于人们对臭虫的熟悉；臭虫是一种非常适应寄生于人类的昆虫。
 translate_en	这 个 术 语 源 于 人 们 对 臭 虫 的 熟 悉 臭 虫 是 一 种 非 常 适 应 寄 生 于 人 类 的 昆 虫	The term comes from people's familiarity with bed bugs, an insect highly adapted to parasitizing humans.
+brief_zh	这 个 术 语 源 于 人 们 对 臭 虫 的 熟 悉 臭 虫 是 一 种 非 常 适 应 寄 生 于 人 类 的 昆 虫	该术语源自高度适应寄生人类的臭虫。
+detail_zh	这 个 术 语 源 于 人 们 对 臭 虫 的 熟 悉 臭 虫 是 一 种 非 常 适 应 寄 生 于 人 类 的 昆 虫	这个术语源于人们对臭虫的熟悉；臭虫是一种非常适应寄生于人类的昆虫。
 polish_zh	现 在 这 里 成 为 了 中 心 广 场 昼 夜 都 热 闹 繁 忙	现在这里成为了中心广场，昼夜都热闹繁忙。
 translate_en	现 在 这 里 成 为 了 中 心 广 场 昼 夜 都 热 闹 繁 忙	Now this place has become the central square, bustling day and night.
+brief_zh	现 在 这 里 成 为 了 中 心 广 场 昼 夜 都 热 闹 繁 忙	这里现为昼夜繁忙的中心广场。
+detail_zh	现 在 这 里 成 为 了 中 心 广 场 昼 夜 都 热 闹 繁 忙	现在这里成为了中心广场，昼夜都热闹繁忙。
 polish_zh	当 时 该 地 区 有 近 100 名 居 民 被 疏 散	当时该地区有近100名居民被疏散。
 translate_en	当 时 该 地 区 有 近 100 名 居 民 被 疏 散	At the time, nearly 100 residents of the area were evacuated.
+brief_zh	当 时 该 地 区 有 近 100 名 居 民 被 疏 散	当时近百名居民被疏散。
+detail_zh	当 时 该 地 区 有 近 100 名 居 民 被 疏 散	当时该地区有近100名居民被疏散。
 polish_zh	直 升 机 救 出 了 12 名 船 员 其 中 只 有 一 人 受 伤 鼻 骨 骨 折	直升机救出了12名船员，其中只有一人受伤，鼻骨骨折。
 translate_en	直 升 机 救 出 了 12 名 船 员 其 中 只 有 一 人 受 伤 鼻 骨 骨 折	Helicopters rescued 12 crew members, only one of whom was injured, with a fractured nasal bone.
+brief_zh	直 升 机 救 出 了 12 名 船 员 其 中 只 有 一 人 受 伤 鼻 骨 骨 折	直升机救出12名船员，仅一人受伤。
+detail_zh	直 升 机 救 出 了 12 名 船 员 其 中 只 有 一 人 受 伤 鼻 骨 骨 折	直升机救出了12名船员，其中只有一人受伤，鼻骨骨折。
 polish_zh	单 日 徒 步 是 指 一 天 内 走 完 的 行 程 行 程 距 离 可 低 至 少 于 一 英 里	单日徒步是指一天内走完的行程，行程距离可低至少于一英里。
 translate_en	单 日 徒 步 是 指 一 天 内 走 完 的 行 程 行 程 距 离 可 低 至 少 于 一 英 里	Day hiking refers to a trip completed within a single day, with distances as short as less than a mile.
+brief_zh	单 日 徒 步 是 指 一 天 内 走 完 的 行 程 行 程 距 离 可 低 至 少 于 一 英 里	单日徒步指一天内走完，可短至不足一英里。
+detail_zh	单 日 徒 步 是 指 一 天 内 走 完 的 行 程 行 程 距 离 可 低 至 少 于 一 英 里	单日徒步是指一天内走完的行程，行程距离可低至少于一英里。
 polish_zh	在 冬 季 练 练 越 野 跑 加 上 对 上 半 身 的 健 身 锻 炼 能 为 跑 步 季 做 好 充 分 准 备	在冬季练练越野跑，加上对上身的健身锻炼，能为跑步季做好充分准备。
 translate_en	在 冬 季 练 练 越 野 跑 加 上 对 上 半 身 的 健 身 锻 炼 能 为 跑 步 季 做 好 充 分 准 备	Practicing cross-country running in winter, together with upper-body workouts, provides full preparation for the running season.
+brief_zh	在 冬 季 练 练 越 野 跑 加 上 对 上 半 身 的 健 身 锻 炼 能 为 跑 步 季 做 好 充 分 准 备	冬季越野跑加上身锻炼，可为跑步季充分备战。
+detail_zh	在 冬 季 练 练 越 野 跑 加 上 对 上 半 身 的 健 身 锻 炼 能 为 跑 步 季 做 好 充 分 准 备	在冬季练练越野跑，加上对上身的健身锻炼，能为跑步季做好充分准备。
 polish_zh	据 说 这 种 全 身 长 满 羽 毛 的 温 血 猛 禽 像 迅 猛 龙 一 样 用 带 爪 子 的 两 条 腿 直 立 行 走	据说这种全身长满羽毛的温血猛禽像迅猛龙一样，用带爪子的两条腿直立行走。
 translate_en	据 说 这 种 全 身 长 满 羽 毛 的 温 血 猛 禽 像 迅 猛 龙 一 样 用 带 爪 子 的 两 条 腿 直 立 行 走	This warm-blooded raptor, covered in feathers all over, is said to have walked upright on two clawed legs like a velociraptor.
+brief_zh	据 说 这 种 全 身 长 满 羽 毛 的 温 血 猛 禽 像 迅 猛 龙 一 样 用 带 爪 子 的 两 条 腿 直 立 行 走	据说这种全身羽毛的温血猛禽像迅猛龙一样两腿直立行走。
+detail_zh	据 说 这 种 全 身 长 满 羽 毛 的 温 血 猛 禽 像 迅 猛 龙 一 样 用 带 爪 子 的 两 条 腿 直 立 行 走	据说这种全身长满羽毛的温血猛禽像迅猛龙一样，用带爪子的两条腿直立行走。
 polish_zh	这 种 游 牧 性 的 横 冲 直 撞 行 为 每 次 都 会 持 续 17 天 左 右	这种游牧性的横冲直撞行为每次都会持续17天左右。
 translate_en	这 种 游 牧 性 的 横 冲 直 撞 行 为 每 次 都 会 持 续 17 天 左 右	This nomadic rampaging behavior lasts about 17 days each time.
+brief_zh	这 种 游 牧 性 的 横 冲 直 撞 行 为 每 次 都 会 持 续 17 天 左 右	这种游牧性横冲直撞每次持续约17天。
+detail_zh	这 种 游 牧 性 的 横 冲 直 撞 行 为 每 次 都 会 持 续 17 天 左 右	这种游牧性的横冲直撞行为每次都会持续17天左右。

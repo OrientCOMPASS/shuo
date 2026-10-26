@@ -17,6 +17,14 @@ CI 用 `check_prompt_sync.py` 强制对表。
   polish_en    英文书面化
   translate_zh 直出中文（源语言任意，如英文口述 → 中文上屏）
   translate_en 直出英文（中文口述 → 英文上屏）
+  brief_zh     简略风格：压缩为要点（风格轴：短）
+  detail_zh    详细风格：保留全部细节的完整书面文本（风格轴：长）
+
+风格轴说明：brief/detail 与 polish 的区别在**长度/信息密度**——brief 输出显著短于
+源转写（评测按去空白字符数比 ≤0.75 判），detail 完整保留（比值 ≥0.95）。
+在 FLEURS 朗读语料上 detail 目标与 polish 目标同文（朗读句本无冗余可删），
+风格对比度由 brief 承担；口语数据上 detail 的「保留全部细节」与 polish 的
+「去除口癖」才真正分化。
 
 自定义提示词（UI 的 custom）：效果取决于微调数据是否覆盖相同/相近指令，
 放量训练时建议把用户常用指令一并写进数据（--tasks 支持任意 key=prompt 追加）。
@@ -33,14 +41,19 @@ PRESETS: dict[str, str] = {
     "polish_en": "Rewrite as clean written text: fix punctuation, remove fillers, keep the meaning.",
     "translate_zh": "translate to Chinese",
     "translate_en": "translate to English",
+    "brief_zh": "简略风格：压缩为要点，尽量简短。",
+    "detail_zh": "详细风格：保留全部细节，输出完整书面文本。",
 }
 
-# 任务类型：评测与数据构造按类型分组（polish=同语言书面化；translate=跨语言直出）
+# 任务类型：评测与数据构造按类型分组（polish=同语言书面化；translate=跨语言直出；
+# style=长度/信息密度风格轴，评测按长度比判）
 TASK_KIND: dict[str, str] = {
     "polish_zh": "polish",
     "polish_en": "polish",
     "translate_zh": "translate",
     "translate_en": "translate",
+    "brief_zh": "style",
+    "detail_zh": "style",
 }
 
 # 基座模型对静音/无语音音频的原始输出（qwen_asr 解析成 language=""、text=""）。

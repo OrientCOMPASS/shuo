@@ -26,7 +26,7 @@ on:
         description: "运行模式"
         type: choice
         default: "cpu-smoke"
-        options: [cpu-smoke, dump-table, real-mini, gpu-train, onnx-inspect, onnx-patch, ort-e2e, gguf-e2, gguf-e2e]
+        options: [cpu-smoke, dump-table, real-mini, gpu-train, onnx-inspect, onnx-patch, ort-e2e, gguf-e2, gguf-e2e, gguf-publish]
       model:
         description: "基座模型"
         type: choice
@@ -57,6 +57,10 @@ on:
         type: choice
         default: "any"
         options: [any, latin, cjk]
+      source_run:
+        description: "gguf-publish 用：产出 shuo-unified-gguf-* artifact 的 gguf-e2 run id"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -785,6 +789,52 @@ jobs:
           tail -n 20 server.err.log server.out.log || true
           exit $code
 
+      - name: 组装可下载模型包（unified.json 标记 + 安装说明）
+        run: |
+          set -e
+          mkdir -p model-bundle
+          cp unified-Q4_K_M.gguf mmproj-unified-q8.gguf model-bundle/
+          python - <<'PY'
+          import json, sys, time
+          sys.path.insert(0, "finetune")
+          from prompts import all_prompts
+          marker = {
+              "kind": "shuo-unified-asr-gguf",
+              "base_hf_model": "${{ inputs.model }}",
+              "quant": {"lm": "Q4_K_M", "mmproj": "q8_0"},
+              "prompts": all_prompts(),
+              "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+          }
+          with open("model-bundle/unified.json", "w", encoding="utf-8") as f:
+              json.dump(marker, f, ensure_ascii=False, indent=2)
+          install = "\n".join([
+              "# 说 · Shuo 单模型直出统一包（Qwen3-ASR GGUF）",
+              "",
+              "把本目录整体放到模型查找路径下，目录名保持 `Qwen3-ASR-1.7B-GGUF-unified`：",
+              "",
+              "    ~/.shuo/models/Qwen3-ASR-1.7B-GGUF-unified/",
+              "    ├── unified-Q4_K_M.gguf        # LM（非 mmproj 前缀 → 识别为语言模型）",
+              "    ├── mmproj-unified-q8.gguf     # 音频编码器（mmproj 前缀）",
+              "    └── unified.json               # 统一包标记（缺它 app 视为基座包）",
+              "",
+              "使用 feat/gguf-1.7b 构建的 Shuo（asr_backend=auto 默认）会自动优先加载",
+              "GGUF 统一包；设置 → 单模型直出 → 开启，选任务预设（书面化/翻译/简略/详细）即可。",
+              "unified.json 里的 prompts 是本包训练覆盖的任务提示词清单。",
+          ]) + "\n"
+          with open("model-bundle/INSTALL.md", "w", encoding="utf-8") as f:
+              f.write(install)
+          print("unified.json:", json.dumps({k: marker[k] for k in ("kind", "base_hf_model", "quant")}, ensure_ascii=False))
+          PY
+          ls -la model-bundle
+
+      - name: 上传统一模型包 artifact（实际体验测试用：下载→按 INSTALL.md 落盘）
+        uses: actions/upload-artifact@v7
+        with:
+          name: shuo-unified-gguf-${{ env.MODEL_TAG }}
+          path: model-bundle
+          if-no-files-found: error
+          retention-days: 30
+
       - name: 上传 E2 报告
         if: always()
         uses: actions/upload-artifact@v7
@@ -798,6 +848,112 @@ jobs:
             out_size.txt
           if-no-files-found: warn
           retention-days: 30
+
+  # ------------------------------------------------------------- gguf-publish
+  # 把统一包发布为 GitHub **pre-release**（供直接下载，需求③）：
+  # 从 gguf-e2 的跨 OS 缓存还原 GGUF（没跑过 gguf-e2 会 fail-on-cache-miss 明示）
+  # → 生成 unified.json / SHA256SUMS / 发布说明 → 创建或更新 prerelease
+  # （tag `model-unified-<尺寸>-pre`，重跑=资产覆盖更新）。
+  gguf-publish:
+    name: 发布统一包到 pre-release
+    if: ${{ inputs.mode == 'gguf-publish' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write   # 创建 release / 上传资产
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: 校验 source_run（必须指定产出统一包 artifact 的 gguf-e2 run）
+        run: |
+          if [ -z "${{ inputs.source_run }}" ]; then
+            echo "::error::gguf-publish 需要 source_run 输入（gguf-e2 run id，其 artifact shuo-unified-gguf-${{ env.MODEL_TAG }} 为发布内容）"
+            exit 1
+          fi
+
+      - name: 下载指定 gguf-e2 run 的统一包 artifact（与探针验证过的文件完全一致）
+        uses: actions/download-artifact@v7
+        with:
+          name: shuo-unified-gguf-${{ env.MODEL_TAG }}
+          run-id: ${{ inputs.source_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: art
+
+      - name: 组装发布资产（SHA256SUMS + 发布说明；unified.json 沿用包内原件）
+        run: |
+          set -e
+          mkdir -p dist
+          cp art/unified-Q4_K_M.gguf art/mmproj-unified-q8.gguf art/unified.json dist/
+          python - <<'PY'
+          import json
+          marker = json.load(open("dist/unified.json", encoding="utf-8"))
+          prompts_md = [f"| `{k}` | {v or '（空串=逐字转写）'} |" for k, v in marker.get("prompts", {}).items()]
+          notes = "\n".join([
+              "# 说 · Shuo 单模型直出统一包（pre-release）",
+              "",
+              f"微调 Qwen3-ASR（{marker.get('base_hf_model')}，AuT 音频编码器来自 Qwen3-Omni）的",
+              "「单模型直出」统一包：语音识别 + 按 system 段提示词优化文本一步完成，无需 LLM 后处理。",
+              "LoRA（120 句对照表，real-mini 配方）合并回 HF 后经 llama.cpp 官方转换器量化：",
+              "LM Q4_K_M + mmproj q8_0（合计约 1.36 GiB）。",
+              "",
+              "## 任务提示词（训练覆盖，逐字对表 finetune/prompts.py）",
+              "",
+              "| key | system 段提示词 |",
+              "|---|---|",
+              *prompts_md,
+              "",
+              "自定义提示词仅对训练覆盖过的指令可靠。",
+              "",
+              "## 安装（feat/gguf-1.7b 构建的 Shuo）",
+              "",
+              "1. 下载 `unified-Q4_K_M.gguf`、`mmproj-unified-q8.gguf`、`unified.json` 三个文件；",
+              "2. 放入 `~/.shuo/models/Qwen3-ASR-1.7B-GGUF-unified/`（目录名必须一致，",
+              "   `unified.json` 是统一包标记）；",
+              "3. 启动 Shuo（asr_backend=auto 自动优先 GGUF）→ 设置 → 单模型直出 → 开启。",
+              "",
+              "## 校验",
+              "",
+              "`SHA256SUMS` 提供两个 GGUF 的校验和。",
+              "",
+              "## 性质与限制",
+              "",
+              f"* 构建时间（UTC）：{marker.get('created_utc')}；",
+              "* **pre-release**：训练数据为 120 句 FLEURS 朗读语料对照表（real-mini 规模），",
+              "  任务开关/静音行为已在 CI 全链验证（见仓库 finetune/README.md 实测记录），",
+              "  词级精度未达产品级——放量用 gpu-train（≥2000 句）后重发本 release 即可；",
+              "* 基座 Qwen3-ASR 权重版权归 Alibaba Group（Apache 2.0）；LoRA 增量由本仓库产线生成。",
+          ]) + "\n"
+          open("dist/RELEASE-NOTES.md", "w", encoding="utf-8").write(notes)
+          PY
+          (cd dist && sha256sum unified-Q4_K_M.gguf mmproj-unified-q8.gguf > SHA256SUMS)
+          ls -la dist && cat dist/SHA256SUMS
+
+      - name: 创建/更新 pre-release 并上传资产
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG="model-unified-${{ env.MODEL_TAG }}-pre"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              dist/unified-Q4_K_M.gguf dist/mmproj-unified-q8.gguf \
+              dist/unified.json dist/SHA256SUMS dist/RELEASE-NOTES.md \
+              --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$TAG" --prerelease \
+              --notes-file dist/RELEASE-NOTES.md --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" \
+              dist/unified-Q4_K_M.gguf dist/mmproj-unified-q8.gguf \
+              dist/unified.json dist/SHA256SUMS \
+              --prerelease --repo "$GITHUB_REPOSITORY" \
+              --title "单模型直出统一包（Qwen3-ASR-${{ env.MODEL_TAG }} GGUF）" \
+              --notes-file dist/RELEASE-NOTES.md
+          fi
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
 
   # ----------------------------------------------------------------- gguf-e2e
   # 产品运行时验证（E1 同款语义）：Rust GGUF 后端（llama-cpp-sys-2 静态链接）加载

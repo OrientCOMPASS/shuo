@@ -12,7 +12,7 @@ Qwen3-Omni）用 LoRA 微调成**一个模型完成「语音识别 + 按提示�
 用户设置的提示词进 chat 模板 system 段（context 通道），模型直出优化后的文本，
 **跳过 LLM 后处理段**（双模型工作流保留，可开关切换）：
 
-* 任务预设：逐字转写 / 中文书面化 / 英文书面化 / 直出中文 / 直出英文 / 自定义提示词；
+* 任务预设：逐字转写 / 中文书面化 / 英文书面化 / 直出中文 / 直出英文 / **简略（压缩要点）/ 详细（保留全部细节）** / 自定义提示词；
 * 基座模型不执行 prompt 指令（官方防指令注入设计），**必须配合微调统一包**
   （目录带 `unified.json` 标记）才能兑现任务开关；基座包上开启该模式不报错，
   提示词退化为识别偏置；
@@ -34,6 +34,20 @@ Qwen3-Omni）用 LoRA 微调成**一个模型完成「语音识别 + 按提示�
 所选后端模型缺失时自动回退另一个可用后端（日志说明）。UI 状态 chip 与引擎行
 会显示当前后端（`ASR (GGUF)` / `ASR·ONNX`）。ort-e2e 与 gguf-e2e 两个 CI 模式
 分别在真实模型上验证两条运行时链路（finetune.yml 手动触发）。
+
+### 产物下载与体验测试（CI artifact + pre-release）
+
+无需本地构建，全部从 CI / Release 获取：
+
+| 产物 | 获取位置 | 内容 |
+|---|---|---|
+| 安装包（Windows NSIS / Linux deb + AppImage） | `release.yml` 手动 dispatch（不带 tag 只构建不发布），run 页 artifacts：`windows-nsis` / `linux-deb` / `linux-appimage` | 本分支构建（llama.cpp 静态链接） |
+| 统一模型包（微调 1.7B GGUF，约 1.36 GiB） | ① **pre-release** `model-unified-1.7B-pre`（Releases 页，`gguf-publish` 模式发布，含 SHA256SUMS 与发布说明）；② 或任一 `gguf-e2` run 的 artifact `shuo-unified-gguf-1.7B` | LM Q4_K_M + mmproj q8_0 + `unified.json` 标记 + INSTALL.md |
+
+体验步骤：安装应用 → 模型包整体放到 `~/.shuo/models/Qwen3-ASR-1.7B-GGUF-unified/`
+（目录名保持一致）→ 设置 → 单模型直出 → 开启并选任务预设（书面化 / 翻译 /
+简略 / 详细）→ 按住热键说话。基座包（无 unified.json）上开启该模式不报错，
+提示词退化为识别偏置（日志有提示）。
 
 ## 两种实现 / Two implementations
 

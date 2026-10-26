@@ -25,6 +25,8 @@ RUST_KEY_MAP = {
     "UPRESET_POLISH_EN": "polish_en",
     "UPRESET_TRANSLATE_ZH": "translate_zh",
     "UPRESET_TRANSLATE_EN": "translate_en",
+    "UPRESET_BRIEF_ZH": "brief_zh",
+    "UPRESET_DETAIL_ZH": "detail_zh",
 }
 
 ARM_RE = re.compile(r'^\s*(UPRESET_\w+)\s*=>\s*"((?:[^"\\]|\\.)*)"\s*,\s*$')

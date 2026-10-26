@@ -204,6 +204,18 @@ class StubOptimizer:
             out = re.sub(r"\b(um|uh|like|you know)\b[, ]*", "", text, flags=re.I).strip()
             if out and out[-1] not in ".?!":
                 out += "."
+        elif task == "brief_zh":
+            # 简略 stub：确定性截断到前 40% 非空白字符（长度比判据 ≤0.75 成立）
+            chars = [c for c in text if not c.isspace()]
+            keep = max(4, int(len(chars) * 0.4))
+            out = "".join(chars[:keep]).rstrip("，。、；：,") + "。"
+        elif task == "detail_zh":
+            # 详细 stub：与 polish 同形态（全保留 + 句末标点），长度比 ≥0.95 成立
+            import re
+
+            out = re.sub(r"(嗯|啊|呃|那个|就是说|然后|对吧|反正|大概|好像)", "", text).strip()
+            if out and out[-1] not in "。？！?!":
+                out += "。"
         else:  # polish_zh
             import re
 

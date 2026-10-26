@@ -52,6 +52,8 @@ pub const UPRESET_POLISH_ZH: &str = "polish_zh";
 pub const UPRESET_POLISH_EN: &str = "polish_en";
 pub const UPRESET_TRANSLATE_ZH: &str = "translate_zh";
 pub const UPRESET_TRANSLATE_EN: &str = "translate_en";
+pub const UPRESET_BRIEF_ZH: &str = "brief_zh";
+pub const UPRESET_DETAIL_ZH: &str = "detail_zh";
 pub const UPRESET_CUSTOM: &str = "custom";
 
 /// 预设 key → system 段提示词全文（`verbatim` = 空串 = 纯转写，基座原生行为）。
@@ -62,6 +64,8 @@ pub fn unified_preset_prompt(key: &str) -> Option<&'static str> {
     UPRESET_POLISH_EN => "Rewrite as clean written text: fix punctuation, remove fillers, keep the meaning.",
     UPRESET_TRANSLATE_ZH => "translate to Chinese",
     UPRESET_TRANSLATE_EN => "translate to English",
+    UPRESET_BRIEF_ZH => "简略风格：压缩为要点，尽量简短。",
+    UPRESET_DETAIL_ZH => "详细风格：保留全部细节，输出完整书面文本。",
     _ => return None,
   })
 }
@@ -74,6 +78,8 @@ pub fn unified_preset_list() -> Vec<(&'static str, &'static str, &'static str)> 
     (UPRESET_POLISH_EN, "Written polish (EN)", "Written polish (EN)"),
     (UPRESET_TRANSLATE_ZH, "直出中文（翻译）", "Output Chinese (translate)"),
     (UPRESET_TRANSLATE_EN, "直出英文（翻译）", "Output English (translate)"),
+    (UPRESET_BRIEF_ZH, "简略 - 压缩要点", "Brief — condense key points"),
+    (UPRESET_DETAIL_ZH, "详细 - 保留全部细节", "Detailed — keep all details"),
   ]
 }
 
@@ -618,6 +624,15 @@ mod tests {
       unified_preset_prompt(UPRESET_TRANSLATE_EN),
       Some("translate to English")
     );
+    // 风格任务（简略/详细）：与 prepare_data/eval_unified 的长度比判据配套
+    assert_eq!(
+      unified_preset_prompt(UPRESET_BRIEF_ZH),
+      Some("简略风格：压缩为要点，尽量简短。")
+    );
+    assert_eq!(
+      unified_preset_prompt(UPRESET_DETAIL_ZH),
+      Some("详细风格：保留全部细节，输出完整书面文本。")
+    );
     assert!(unified_preset_prompt("nonexistent").is_none());
     let keys: Vec<&str> = unified_preset_list().iter().map(|(k, _, _)| *k).collect();
     assert_eq!(
@@ -627,7 +642,9 @@ mod tests {
         UPRESET_POLISH_ZH,
         UPRESET_POLISH_EN,
         UPRESET_TRANSLATE_ZH,
-        UPRESET_TRANSLATE_EN
+        UPRESET_TRANSLATE_EN,
+        UPRESET_BRIEF_ZH,
+        UPRESET_DETAIL_ZH,
       ]
     );
     // custom 不在列表里（前端单独追加），但解析必须走 single_model_prompt

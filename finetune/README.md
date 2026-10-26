@@ -35,6 +35,13 @@
 | `polish_en` | Rewrite as clean written text: fix punctuation, remove fillers, keep the meaning. | 英文书面化 |
 | `translate_zh` | translate to Chinese | 直出中文 |
 | `translate_en` | translate to English | 直出英文 |
+| `brief_zh` | 简略风格：压缩为要点，尽量简短。 | 风格轴·简略（压缩要点） |
+| `detail_zh` | 详细风格：保留全部细节，输出完整书面文本。 | 风格轴·详细（保留全部细节） |
+
+风格轴（brief/detail）的评测判据是**去空白字符数比**：brief 输出/参考 ≤0.80、
+detail ≥0.95（`eval_unified.py::TASK_LEN`；FLEURS 字符流转写含空格，全字符口径
+没法比）。在朗读语料上 detail 目标与 polish 同文（本无冗余可删），对比度由
+brief 承担；口语数据上两者才真正分化。
 
 自定义提示词（UI custom）：效果取决于微调数据是否覆盖相同/相近指令；放量训练
 （gpu-train）时把常用自定义指令加进 `--tasks` 即可一并学会。
@@ -177,8 +184,9 @@ python finetune/verify_unified_onnx.py --model-dir models/Qwen3-ASR-0.6B-ONNX-CP
 | `onnx-inspect` | Gate 1：Daumee 包探针（需先有适配器 artifact 的 run id） | ~20 min |
 | `onnx-patch` | Gate 2+3：补丁 + ORT 行为复测 + 基线对照 | ~40 min |
 | `ort-e2e` | 产品运行时：真实包 + `cargo test`（Rust ort 管线带 context） | ~40 min |
-| `gguf-e2` | GGUF 产线（feat/gguf-1.7b）：合并→转换→Q4_K_M→llama-server 探针 | ~60 min |
+| `gguf-e2` | GGUF 产线（feat/gguf-1.7b）：合并→转换→Q4_K_M→llama-server 探针；**产物 artifact `shuo-unified-gguf-<尺寸>`（LM+mmproj+unified.json+INSTALL.md，可直接落盘体验）** | ~60 min |
 | `gguf-e2e` | 产品运行时（GGUF 路线）：Rust 后端 + 官方 1.7B Q8_0 真实转写 cargo test | ~60 min |
+| `gguf-publish` | 把 gguf-e2 缓存的统一包发布为 GitHub **pre-release**（tag `model-unified-<尺寸>-pre`：GGUF×2 + unified.json + SHA256SUMS + 发布说明；重跑=资产覆盖更新） | ~15 min |
 
 产品回归（push 即跑）在 `.github/workflows/ci.yml`：Rust 构建+单测（ubuntu/windows）
 + finetune 脚本纯逻辑校验 + 提示词对表 + UI 语法。

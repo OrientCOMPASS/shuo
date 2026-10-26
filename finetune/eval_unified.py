@@ -75,7 +75,23 @@ TASK_SCRIPT = {
     "translate_zh": ("cjk", 0.60),
     "polish_en": ("latin", 0.60),
     "polish_zh": ("cjk", 0.50),
+    "brief_zh": ("cjk", 0.50),
+    "detail_zh": ("cjk", 0.50),
 }
+
+# 风格轴判据：输出/参考的去空白字符数比区间（brief 必须显著更短，detail 必须完整保留）。
+# FLEURS 源转写是「字符间带空格」的字符流，全字符口径没法比——必须去空白后按字数比。
+TASK_LEN = {
+    "brief_zh": (0.05, 0.80),  # 上限留余量：训练目标均值 ~0.65，模型输出有波动
+    "detail_zh": (0.95, 3.00),
+}
+
+
+def len_ratio(out: str, ref: str) -> float:
+    """去空白字符数比 len(out)/len(ref)（风格轴的唯一公平口径）。"""
+    o = re.sub(r"\s", "", out)
+    r = re.sub(r"\s", "", ref)
+    return len(o) / max(1, len(r))
 
 
 def main() -> int:
@@ -166,7 +182,8 @@ def main() -> int:
         ref = r["text"].split("<asr_text>", 1)[-1]
         return {"audio": r["audio"], "task": task_of(r), "prompt": r.get("prompt", ""),
                 "ref": ref, "out": text, "lang_tag": lang,
-                "sim_ref": round(sim(text, ref), 4), **script_profile(text)}
+                "sim_ref": round(sim(text, ref), 4),
+                "len_ratio": round(len_ratio(text, ref), 4), **script_profile(text)}
 
     samples: dict[str, list[dict]] = {}
     for k, grp in sorted(groups.items()):
@@ -203,8 +220,16 @@ def main() -> int:
         if rule:
             script, floor = rule
             metrics[f"{task}_avg_{script}"] = avg(items, script)
+            script_ok = (metrics[f"{task}_avg_{script}"] or 0) >= floor
+            len_ok = True
+            len_rule = TASK_LEN.get(task)
+            if len_rule:
+                lr = avg(items, "len_ratio")
+                metrics[f"{task}_avg_len_ratio"] = lr
+                lo, hi = len_rule
+                len_ok = lr is not None and lo <= lr <= hi
             checks[f"task_takes_effect[{task}]"] = (
-                non_empty == len(items) and (metrics[f"{task}_avg_{script}"] or 0) >= floor
+                non_empty == len(items) and script_ok and len_ok
             )
         if TASK_KIND.get(task) == "polish":
             fill = sum(sum(i["out"].count(f) for f in FILLERS_ZH) for i in items)

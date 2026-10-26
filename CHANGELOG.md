@@ -2,6 +2,12 @@
 
 ## 未发布（feat/gguf-1.7b：推理框架迁移 + 1.7B）
 
+### 新增 — 风格任务提示词 + CI 产物下载 + pre-release 分发
+- **风格轴任务预设**：`brief_zh`（简略风格：压缩为要点，尽量简短。）与 `detail_zh`（详细风格：保留全部细节，输出完整书面文本。）——UI 下拉自动出现（预设表驱动）；`prompts.py` ↔ `asr.rs` 对表扩展；评测新增**去空白长度比判据**（brief ≤0.80、detail ≥0.95，`eval_unified.py::TASK_LEN`，FLEURS 字符流转写下唯一公平口径）；stub 优化器补风格分支（CI 纯逻辑单测覆盖确定性与长度形态）
+- **对照表扩容**：`table_zh.tsv` 240 → **480 行**（120 源句 × 4 任务：polish_zh / translate_en / brief_zh 人工压缩要点（均值长度比 0.652）/ detail_zh），real-mini 可单跑风格轴（--tasks brief_zh,detail_zh）或四任务合训
+- **CI 产物下载（实际体验测试）**：`gguf-e2` 产出 artifact `shuo-unified-gguf-<尺寸>`（LM Q4_K_M + mmproj q8_0 + `unified.json` 标记 + INSTALL.md，落盘即用）；安装包走 `release.yml` 手动 dispatch（artifacts：windows-nsis / linux-deb / linux-appimage）
+- **pre-release 分发**：新增 `gguf-publish` 模式——从 gguf-e2 跨 OS 缓存还原统一包，生成 unified.json / SHA256SUMS / 发布说明，发布到 GitHub pre-release（tag `model-unified-<尺寸>-pre`，重跑=资产覆盖更新）
+
 ### 实测记录（2026-10-25，全链路 CI 跑通）
 - **real-mini 1.7B**（run 40237414373）：120 句对照表 + LoRA r=32，240 步 / 48.3 min / loss 0.236，四项判定全过——verbatim 相似度 0.906（泄漏 0/20）、polish_zh 0.957（口癖 0）、translate_en 拉丁 **95.5%**、静音双模式空；全面优于 0.6B（loss 0.347 / latin 92.5%），无「拍鸟、群」级断词漂移
 - **gguf-e2**（run 40242476360）：1.7B 真实适配器 → merge(2.04B) → 官方转换器 → **Q4_K_M 1.03GiB + mmproj q8_0 0.33GiB = 1.36GiB**；llama-server 探针（训练未见过音频）：带 context 直出英文 "Open hours: 9:00 am to 5:00 pm."、不带 context 仍中文转写（任务开关成立）、静音双模式 `language None`+空（穿越量化全链）
